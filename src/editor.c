@@ -1312,9 +1312,9 @@ if(KEY_EITHER_ALT && (eof_key_code == KEY_V))
 				eof_use_key();
 			}
 			else if(KEY_EITHER_SHIFT && !KEY_EITHER_CTRL)
-			{	//SHIFT+E will place a section event
+			{	//SHIFT+E will place a rocksmith event
 				eof_shift_used = 1;	//Track that the SHIFT key was used
-				(void) eof_menu_beat_add_section();
+				(void) eof_rocksmith_event_dialog_add();
 				eof_use_key();
 			}
 		}
