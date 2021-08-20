@@ -4713,37 +4713,29 @@ int eof_menu_note_edit_pro_guitar_note(void)
 		{	//Clear "Sustain"
 			eof_pro_guitar_note_dialog[70].flags = 0;
 		}
-		if(flags & EOF_PRO_GUITAR_NOTE_FLAG_HD)
-		{	//Select "Hi Dens"
+		if(flags & EOF_PRO_GUITAR_NOTE_FLAG_SPLIT)
+		{	//Select "Split"
 			eof_pro_guitar_note_dialog[73].flags = D_SELECTED;
 		}
 		else
-		{	//Clear "Hi Dens"
-			eof_pro_guitar_note_dialog[73].flags = 0;
-		}
-		if(flags & EOF_PRO_GUITAR_NOTE_FLAG_SPLIT)
-		{	//Select "Split"
-			eof_pro_guitar_note_dialog[74].flags = D_SELECTED;
-		}
-		else
 		{	//Clear "Split"
-			eof_pro_guitar_note_dialog[74].flags = 0;
+			eof_pro_guitar_note_dialog[73].flags = 0;
 		}
 		if(eflags & EOF_PRO_GUITAR_NOTE_EFLAG_CHORDIFY)
 		{	//Select "Chordify"
-			eof_pro_guitar_note_dialog[75].flags = D_SELECTED;
+			eof_pro_guitar_note_dialog[74].flags = D_SELECTED;
 		}
 		else
 		{	//Clear "Chordify"
-			eof_pro_guitar_note_dialog[75].flags = 0;
+			eof_pro_guitar_note_dialog[74].flags = 0;
 		}
 		if(eflags & EOF_PRO_GUITAR_NOTE_EFLAG_FINGERLESS)
 		{	//Select "Fingerless"
-			eof_pro_guitar_note_dialog[76].flags = D_SELECTED;
+			eof_pro_guitar_note_dialog[75].flags = D_SELECTED;
 		}
 		else
 		{	//Clear "Fingerless"
-			eof_pro_guitar_note_dialog[76].flags = 0;
+			eof_pro_guitar_note_dialog[75].flags = 0;
 		}
 
 		//The remaining statuses depend on whether tech view is in effect
@@ -4772,14 +4764,14 @@ int eof_menu_note_edit_pro_guitar_note(void)
 				eof_pro_guitar_note_dialog[71].flags = 0;
 			}
 			eof_pro_guitar_note_dialog[72].flags = D_DISABLED;	//"Ghost HS" status
-			eof_pro_guitar_note_dialog[75].flags = D_DISABLED;	//"Chordify" status
+			eof_pro_guitar_note_dialog[74].flags = D_DISABLED;	//"Chordify" status
 			if(eflags & EOF_PRO_GUITAR_NOTE_EFLAG_PRE_BEND)
 			{	//Select "Pre-bend"
-				eof_pro_guitar_note_dialog[77].flags = D_SELECTED;
+				eof_pro_guitar_note_dialog[76].flags = D_SELECTED;
 			}
 			else
 			{	//Clear "Pre-bend"
-				eof_pro_guitar_note_dialog[77].flags = 0;
+				eof_pro_guitar_note_dialog[76].flags = 0;
 			}
 		}
 
@@ -5086,22 +5078,18 @@ int eof_menu_note_edit_pro_guitar_note(void)
 					eflags |= EOF_PRO_GUITAR_NOTE_EFLAG_GHOST_HS;
 				}
 				if(eof_pro_guitar_note_dialog[73].flags == D_SELECTED)
-				{	//High Density is selected
-					flags |= EOF_PRO_GUITAR_NOTE_FLAG_HD;
-				}
-				if(eof_pro_guitar_note_dialog[74].flags == D_SELECTED)
 				{	//Split is selected
 					flags |= EOF_PRO_GUITAR_NOTE_FLAG_SPLIT;
 				}
-				if(eof_pro_guitar_note_dialog[75].flags == D_SELECTED)
+				if(eof_pro_guitar_note_dialog[74].flags == D_SELECTED)
 				{	//Chordify is selected
 					eflags |= EOF_PRO_GUITAR_NOTE_EFLAG_CHORDIFY;
 				}
-				if(eof_pro_guitar_note_dialog[76].flags == D_SELECTED)
+				if(eof_pro_guitar_note_dialog[75].flags == D_SELECTED)
 				{	//Fingerless is selected
 					eflags |= EOF_PRO_GUITAR_NOTE_EFLAG_FINGERLESS;
 				}
-				if(eof_pro_guitar_note_dialog[77].flags == D_SELECTED)
+				if(eof_pro_guitar_note_dialog[76].flags == D_SELECTED)
 				{	//Pre-bend is selected, apply the normal bend status in addition to the pre-bend status
 					eflags |= EOF_PRO_GUITAR_NOTE_EFLAG_PRE_BEND;
 					flags |= EOF_PRO_GUITAR_NOTE_FLAG_BEND;
