@@ -4745,6 +4745,24 @@ int eof_time_range_is_populated(EOF_SONG *sp, unsigned long track, unsigned long
 	return retval;	//Return not populated
 }
 
+int eof_same_excluding_ghosts(EOF_PRO_GUITAR_TRACK *tp, unsigned long track, unsigned long note1, unsigned long note2)
+{
+	unsigned long ctr, bitmask;
+
+	for(ctr = 0, bitmask = 1; ctr < 6; ctr ++, bitmask <<= 1)
+	{	//For each of the 6 supported strings
+		if(!(tp->note[note1]->ghost & bitmask) && !(tp->note[note2]->ghost & bitmask))
+		{	//If the string is not ghosted
+			if((tp->note[note1]->frets[ctr] & 0x7F) != (tp->note[note2]->frets[ctr] & 0x7F))
+			{	//If this string's fret value (when masking out the mute status) isn't the same for both notes
+				return 1;	//Return not equal
+			}
+		}
+	}
+
+	return 0;	//Return equal
+}
+
 int eof_note_has_high_chord_density(EOF_SONG *sp, unsigned long track, unsigned long note, char target)
 {
 	long prev;
@@ -4801,7 +4819,7 @@ int eof_note_has_high_chord_density(EOF_SONG *sp, unsigned long track, unsigned 
 				unsigned long lanecount = eof_note_count_rs_lanes(sp, track, prevInHandShape, 2);
 				if(lanecount > 1)
 				{
-					if(eof_note_compare(sp, track, note, track, prevInHandShape, 0) == 0)
+					if(!eof_same_excluding_ghosts(tp, track, note, prevInHandShape))
 					{	// The previous chord matches this one
 						return 1;
 					}
