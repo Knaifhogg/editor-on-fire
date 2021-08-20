@@ -67,9 +67,9 @@ EOF_RS_PREDEFINED_SECTION eof_rs_predefined_events[EOF_NUM_RS_PREDEFINED_EVENTS]
 {
 	{"B0", "High pitch tick (B0)"},
 	{"B1", "Low pitch tick (B1)"},
-	{"E0", "Crowd waving hands (E0)"},
-	{"E1", "Crowd happy (E1)"},
-	{"E2", "Crowd very happy (E2)"},
+	{"e0", "Crowd speed slow (e0)"},
+	{"e1", "Crowd speed default (e1)"},
+	{"e2", "Crowd speed fast (e2)"},
 	{"E3", "Crowd applause (E3)"},
 	{"D3", "Crowd critique applause (D3)"},
 	{"E13", "End crowd applause (E13)"}
