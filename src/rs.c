@@ -3158,15 +3158,8 @@ int eof_export_rocksmith_2_track(EOF_SONG * sp, char * fn, unsigned long track, 
 						}
 						else
 						{	//The next note (if any) is not a repeat of this note and is not completely string muted
-							if(eof_get_note_tflags(sp, track, nextnote) & EOF_NOTE_TFLAG_SPLIT_CHORD)
-							{	//If this note was created from a chord due to linknext or split statuses, it is to be ignored so the handshape can encompass it where appropriate
-								ctr3 = nextnote;	//Iterate to the next note
-							}
-							else
-							{
-								handshapeend = eof_get_note_pos(sp, track, ctr3) + eof_get_note_length(sp, track, ctr3);	//End the hand shape at the end of this chord
-								break;	//Break from while loop
-							}
+							handshapeend = eof_get_note_pos(sp, track, ctr3) + eof_get_note_length(sp, track, ctr3);	//End the hand shape at the end of this chord
+							break;	//Break from while loop
 						}
 					}
 				}
