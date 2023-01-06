@@ -3167,7 +3167,7 @@ int eof_menu_track_evaluate_user_ch_sp_path(void)
 	return 1;
 }
 
-inline void eof_big_number_add(EOF_BIG_NUMBER *bignum, unsigned long addend)
+void eof_big_number_add(EOF_BIG_NUMBER *bignum, unsigned long addend)
 {
 	unsigned long num_until_overflow = EOF_BIG_NUMBER_OVERFLOW_VALUE - bignum->value;	//The lowest addend that will trigger an overflow
 
@@ -3180,7 +3180,7 @@ inline void eof_big_number_add(EOF_BIG_NUMBER *bignum, unsigned long addend)
 	bignum->value += addend;			//Add any remaining amount of the addend to the target big number
 }
 
-inline void eof_big_number_increment(EOF_BIG_NUMBER *bignum)
+void eof_big_number_increment(EOF_BIG_NUMBER *bignum)
 {
 	if(bignum->value >= EOF_BIG_NUMBER_OVERFLOW_VALUE - 1)
 	{	//If this increment will overflow
@@ -3191,7 +3191,7 @@ inline void eof_big_number_increment(EOF_BIG_NUMBER *bignum)
 		bignum->value++;			//Otherwise the value of the big number increases by 1
 }
 
-inline void eof_big_number_add_big_number(EOF_BIG_NUMBER *bignum, EOF_BIG_NUMBER *addend)
+void eof_big_number_add_big_number(EOF_BIG_NUMBER *bignum, EOF_BIG_NUMBER *addend)
 {
 	eof_big_number_add(bignum, addend->value);	//Add the addend's non overflowed value and update the target's overflow value if appropriate
 	bignum->overflow_count += addend->overflow_count;	//Add the addend's overflow count to the target
