@@ -133,7 +133,7 @@ unsigned long eof_calculate_beats_logic(EOF_SONG * sp, int addbeats)
 
 	sp->beat[0]->fpos = (double)sp->tags->ogg[0].midi_offset;
 	sp->beat[0]->pos = sp->beat[0]->fpos + 0.5;	//Round up
-
+	sp->beat[0]->ppqn = (60000000.0 / sp->bpm) + 0.5;		//Convert BPM to ppqn, rounding up
 	/* calculate the beat length */
 	beat_length = eof_calc_beat_length(sp, 0);
 	sp->beat[0]->flags |= EOF_BEAT_FLAG_ANCHOR;	//The first beat is always an anchor
@@ -683,14 +683,14 @@ int eof_song_append_beats(EOF_SONG * sp, unsigned long beats)
 		{
 			return 0;	//Return failure
 		}
-		if(sp->beats >= 2)
+		if(sp->beats > 2)
 		{	//If there are at least two beats in the project now
 			sp->beat[sp->beats - 1]->ppqn = sp->beat[sp->beats - 2]->ppqn;		//Set this beat's tempo to match the previous beat
 			sp->beat[sp->beats - 1]->fpos = sp->beat[sp->beats - 2]->fpos + beat_length;	//Set this beat's position to one beat length after the previous beat
 		}
 		else
 		{	//Otherwise set this beat's tempo to 120BPM
-			sp->beat[sp->beats - 1]->ppqn = 500000;
+			sp->beat[sp->beats - 1]->ppqn = (60000000.0 / sp->bpm) + 0.5;		//Convert BPM to ppqn, rounding up
 			sp->beat[sp->beats - 1]->fpos = 0;
 		}
 		sp->beat[sp->beats - 1]->pos = sp->beat[sp->beats - 1]->fpos + 0.5;	//Round up
