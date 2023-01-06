@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -O2 -fomit-frame-pointer -ffast-math -funroll-loops -mwindows -static -static-libgcc -static-libstdc++ -flto -Ialogg/include -DEOF_BUILD -DALLEGRO_STATICLINK
+CFLAGS = -g -Wall -O0 -fkeep-inline-functions -fomit-frame-pointer -ffast-math -funroll-loops -mwindows -static -static-libgcc -static-libstdc++ -flto -Ialogg/include -DEOF_BUILD -DALLEGRO_STATICLINK -DGP_IMPORT_DEBUG
 CXXFLAGS = $(CFLAGS)
 LIBS = -lalleg -logg -lvorbisfile -lvorbis -lm -lfftw3 -lrubberband -lstdc++ -lsamplerate -lddraw -ldsound -ldinput -ldxguid -lole32 -lwinmm
 
