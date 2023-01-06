@@ -607,7 +607,7 @@ typedef struct
 	 * when importing we should store the value from the source file here to
 	 * simplify import and to minimize changes made to the file upon export */
 	int resolution;
-
+	unsigned int bpm;
 	/* track data */
 	EOF_TRACK_ENTRY * track[EOF_TRACKS_MAX];	//track[] is a list of all existing tracks among all track types
 	unsigned long tracks;						//track[0] is a dummy track and does not store actual track data

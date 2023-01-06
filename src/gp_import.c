@@ -2158,6 +2158,8 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 		(void) eof_read_gp_string(inf, NULL, buffer, 1);	//Read the tempo string
 	}
 	pack_ReadDWORDLE(inf, &dword);	//Read the tempo
+	gp->bpm = dword;
+	
 	if(fileversion > 500)
 	{	//There is a byte of unknown data/padding here in versions newer than 5.0 of the format
 		(void) pack_fseek(inf, 1);		//Unknown data
@@ -2627,6 +2629,9 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 		tsarray[ctr].num_of_repeats = num_of_repeats;
 		totalbeats += curnum;		//Add the number of beats in this measure to the ongoing counter
 	}//For each measure
+
+	eof_song->bpm = gp->bpm;
+
 	if(eof_song->beats < totalbeats + 2)
 	{	//If there will be beats appended to the project to encompass the guitar pro file's tracks
 #ifdef GP_IMPORT_DEBUG
