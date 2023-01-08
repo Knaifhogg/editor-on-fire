@@ -3866,7 +3866,7 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 #endif					
 					}
 					eof_song->beat[beat_position]->ppqn = (60000000.0 / previous_tempo) + 0.5;		//Convert BPM to ppqn, rounding up					}
-					eof_calculate_beats_logic(eof_song, 0);
+					eof_calculate_range_of_beats_logic(eof_song, curbeat, beat_position); // This is run again later but this ensure fpos is correct if this is the first beat increase after a bpm change
 
 					if(beat_position >= skipbeatsourcectr)
 					{	//If this beat's content is being imported
@@ -3883,7 +3883,7 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 						for (unsigned long i = curbeat; i <= beat_position; i++) {
 							eof_song->beat[i]->ppqn = (60000000.0 / previous_tempo) + 0.5;		//Convert BPM to ppqn, rounding up					}
 						}
-						eof_calculate_beats_logic(eof_song, 0);
+						eof_calculate_range_of_beats_logic(eof_song, curbeat, beat_position);
 
 						beat_position -= skipbeatsourcectr;	//Offset by the number of beats being skipped
 
@@ -5786,7 +5786,6 @@ char eof_copy_notes_in_beat_range(EOF_SONG *ssp, EOF_PRO_GUITAR_TRACK *source, u
 	}//For each note in the source track
 
 	long beat_length = eof_put_porpos_sp(dsp, startbeat + endbeatnum - startbeat, noteendpos, 0.0) - eof_put_porpos_sp(dsp, startbeat + endbeatnum - startbeat -1, noteendpos, 0.0);
-	long start_beat = eof_put_porpos_sp(dsp, startbeat + endbeatnum - startbeat, noteendpos, 0.0);
 	long measure_length = numbeats * beat_length;
 
 	if (is_repeat_unwrap) {
