@@ -191,6 +191,55 @@ unsigned long eof_calculate_beats(EOF_SONG * sp)
 	return eof_calculate_beats_logic(sp, 1);
 }
 
+unsigned long eof_calculate_range_of_beats_logic(EOF_SONG * sp, const unsigned long start_beat, unsigned long end_beat)
+{
+	double curpos = 0.0;
+	double beat_length = 0;
+	unsigned num = 4, den = 4, lastden = 4;
+
+	if(!sp || sp->beats <= 2)
+	{
+		return 0;
+	}
+
+	if (end_beat >= sp->beats) {
+		end_beat = sp->beats - 1;
+	}
+
+	if (start_beat == 0) {
+		(void) eof_get_ts(sp, &num, &den, start_beat);	// Lookup any time signature defined at the beat
+		beat_length = eof_calc_beat_length(sp, start_beat);
+		curpos = 0;
+	}
+	else {
+		(void) eof_get_ts(sp, &num, &den, start_beat-1);	// Lookup any time signature defined at the beat
+		beat_length = eof_calc_beat_length(sp, start_beat-1);
+		curpos = sp->beat[start_beat-1]->fpos;
+	}
+
+	for(unsigned long i = start_beat; i <= end_beat; i++)
+	{	//For each beat
+		if (i == 0) {
+			continue;
+		}
+		curpos += beat_length;
+		sp->beat[i]->fpos = (double)sp->tags->ogg[0].midi_offset + curpos;
+		sp->beat[i]->pos = sp->beat[i]->fpos + 0.5;	//Round up
+
+		(void) eof_get_ts(sp, &num, &den, i);	// Lookup any time signature defined at the beat
+		/* bpm changed or TS denominator changed */
+		if(sp->beat[i]->ppqn != sp->beat[i - 1]->ppqn || den != lastden)
+		{
+			sp->beat[i]->flags |= EOF_BEAT_FLAG_ANCHOR;	//Set the anchor flag
+		}
+
+		lastden = den;	//Track the TS denominator in use
+		beat_length = eof_calc_beat_length(sp, i);	//Recalculate the beat length every beat because either a time signature change or a tempo change will alter it
+	}
+
+	return 1;
+}
+
 void eof_calculate_tempo_map(EOF_SONG * sp)
 {
 	unsigned long ctr, lastppqn = 0;
