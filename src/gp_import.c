@@ -2632,6 +2632,8 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 
 	eof_song->bpm = gp->bpm;
 
+	eof_calculate_beats(eof_song); // Update the beats created before track was known
+
 	if(eof_song->beats < totalbeats + 2)
 	{	//If there will be beats appended to the project to encompass the guitar pro file's tracks
 #ifdef GP_IMPORT_DEBUG
