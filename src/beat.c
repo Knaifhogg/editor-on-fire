@@ -146,6 +146,9 @@ unsigned long eof_calculate_beats_logic(EOF_SONG * sp, int addbeats)
 		/* bpm changed */
 		if(sp->beat[i]->ppqn != sp->beat[i - 1]->ppqn)
 		{
+			if (sp->beat[i]->ppqn == 0) {
+				sp->beat[i]->ppqn = sp->beat[i - 1]->ppqn;
+			}
 			sp->beat[i]->flags |= EOF_BEAT_FLAG_ANCHOR;	//Set the anchor flag
 		}
 		/* TS denominator changed */
@@ -235,6 +238,11 @@ unsigned long eof_calculate_range_of_beats_logic(EOF_SONG * sp, const unsigned l
 
 		lastden = den;	//Track the TS denominator in use
 		beat_length = eof_calc_beat_length(sp, i);	//Recalculate the beat length every beat because either a time signature change or a tempo change will alter it
+	}
+
+	if(eof_chart_length < sp->beat[sp->beats - 1]->pos)
+	{	//If the chart length needs to be updated to reflect the beat map making the chart longer
+		eof_chart_length = sp->beat[sp->beats - 1]->pos;
 	}
 
 	return 1;
@@ -732,7 +740,7 @@ int eof_song_append_beats(EOF_SONG * sp, unsigned long beats)
 		{
 			return 0;	//Return failure
 		}
-		if(sp->beats > 2)
+		if(sp->beats >= 2)
 		{	//If there are at least two beats in the project now
 			sp->beat[sp->beats - 1]->ppqn = sp->beat[sp->beats - 2]->ppqn;		//Set this beat's tempo to match the previous beat
 			sp->beat[sp->beats - 1]->fpos = sp->beat[sp->beats - 2]->fpos + beat_length;	//Set this beat's position to one beat length after the previous beat
