@@ -5115,6 +5115,7 @@ int eof_unwrap_gp_track(struct eof_guitar_pro_struct *gp, unsigned long track, c
 	memset(tp, 0, sizeof(EOF_PRO_GUITAR_TRACK));	//Initialize memory block to 0 to avoid crashes when not explicitly setting counters that were newly added to the pro guitar structure
 	tp->numfrets = gp->track[track]->numfrets;
 	tp->numstrings = gp->track[track]->numstrings;
+	tp->capo = gp->track[track]->capo;
 	tp->note = tp->pgnote;	//Put the regular pro guitar note array into effect
 	tp->parent = NULL;
 	memcpy(tp->tuning, gp->track[track]->tuning, sizeof(char) * EOF_TUNING_LENGTH);
