@@ -634,7 +634,7 @@ typedef struct
 	unsigned long bookmark_pos[EOF_MAX_BOOKMARK_ENTRIES];	//A bookmark is set if its position is set to nonzero
 	EOF_CATALOG * catalog;
 	char fpbeattimes;	//Is set to nonzero if floating point beat timings were read from the project file during load, allowing a precision lossy call to eof_calculate_beats() to be avoided in eof_init_after_load()
-
+	char keep_chart_length_over_music_length;
 } EOF_SONG;
 
 EOF_SONG * eof_create_song(void);	//Allocates, initializes and returns an EOF_SONG structure
