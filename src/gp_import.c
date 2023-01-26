@@ -5407,9 +5407,11 @@ int eof_unwrap_gp_track(struct eof_guitar_pro_struct *gp, unsigned long track, c
 			}
 
 			beatctr += gp->measure[currentmeasure].num;	//Add the number of beats contained in this measure to the ongoing counter
+			unsigned char curr_alt_ending;
+			curr_alt_ending = gp->measure[currentmeasure].alt_endings;	//Remember the alternate ending number being skipped
 
 			//Either increment to the next measure or seek to the beginning of a repeat/symbol
-			if(working_num_of_repeats[currentmeasure])
+			if(working_num_of_repeats[currentmeasure] && curr_alt_ending <= 1)
 			{	//If this measure has an end of repeat with any repeats left, seek to the appropriate measure
 #ifdef GP_IMPORT_DEBUG
 				(void) snprintf(eof_log_string, sizeof(eof_log_string) - 1, "\t\tEnd of repeat (%d repeats left) -> Seeking to measure #%lu", working_num_of_repeats[currentmeasure] - 1, last_start_of_repeat + 1);
