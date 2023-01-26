@@ -5430,6 +5430,7 @@ int eof_gp_import_common(const char *fn)
 		return 1;	//Return failure
 	}
 
+	eof_song->keep_chart_length_over_music_length = 1;
 	eof_log("Cleaning up beats", 1);
 	eof_truncate_chart(eof_song);	//Remove excess beat markers and update the eof_chart_length variable
 	eof_beat_stats_cached = 0;		//Mark the cached beat stats as not current
