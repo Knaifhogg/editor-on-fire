@@ -1733,7 +1733,6 @@ int eof_export_rocksmith_2_track(EOF_SONG * sp, char * fn, unsigned long track, 
 	(void) pack_fputs("  <part>1</part>\n", fp);
 	(void) pack_fputs("  <offset>0.000</offset>\n", fp);
 	(void) pack_fputs("  <centOffset>0</centOffset>\n", fp);
-	eof_truncate_chart(sp);	//Update the chart length
 	(void) snprintf(buffer, sizeof(buffer) - 1, "  <songLength>%.3f</songLength>\n", (double)(xml_end - 1) / 1000.0);	//Make sure the song length is not longer than the actual audio, or the chart won't reach an end in-game
 	(void) pack_fputs(buffer, fp);
 	seconds = time(NULL);
