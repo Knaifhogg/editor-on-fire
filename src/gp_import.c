@@ -2065,9 +2065,12 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 
 //Read past various ignored information
 	(void) eof_read_gp_string(inf, NULL, buffer, 1);	//Read title string
+	(void) ustrcpy(gp->title, buffer);
 	(void) eof_read_gp_string(inf, NULL, buffer, 1);	//Read subtitle string
 	(void) eof_read_gp_string(inf, NULL, buffer, 1);	//Read artist string
+	(void) ustrcpy(gp->artist, buffer);
 	(void) eof_read_gp_string(inf, NULL, buffer, 1);	//Read album string
+	(void) ustrcpy(gp->album, buffer);
 	if(fileversion >= 500)
 	{	//The words field only exists in version 5.x or higher versions of the format
 		(void) eof_read_gp_string(inf, NULL, buffer, 1);	//Read words string
@@ -2631,6 +2634,9 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 	}//For each measure
 
 	eof_song->bpm = gp->bpm;
+	(void) ustrcpy(eof_song->tags->title, gp->title);
+	(void) ustrcpy(eof_song->tags->artist, gp->artist);
+	(void) ustrcpy(eof_song->tags->album, gp->album);
 
 	eof_calculate_beats(eof_song); // Update the beats created before track was known
 
