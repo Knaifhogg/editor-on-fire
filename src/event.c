@@ -3,6 +3,7 @@
 #include "beat.h"
 #include "event.h"
 #include "undo.h"
+#include <ctype.h>
 
 #ifdef USEMEMWATCH
 #include "memwatch.h"
@@ -26,8 +27,17 @@ EOF_TEXT_EVENT * eof_song_add_text_event(EOF_SONG * sp, unsigned long pos, char 
 	if(!sp->text_event[sp->text_events])
 		return NULL;	//If the allocation failed, return NULL
 
+	char sanitized_text[256] = {0};
+
+	for(unsigned int ctr = 0, length = ustrlen(text); ctr < length; ctr++)
+	{	//For each character of the string
+		char this_char = ugetat(text, ctr);
+		if(isalnum(this_char)) { //If the character isn't an alphanumeric ASCII character
+			strncat(sanitized_text, &this_char, 1);
+		}
+	}
 	sp->text_event[sp->text_events]->text[0] = '\0';	//Eliminate false positive in Splint
-	(void) ustrcpy(sp->text_event[sp->text_events]->text, text);
+	(void) ustrcpy(sp->text_event[sp->text_events]->text, sanitized_text);
 	sp->text_event[sp->text_events]->pos = pos;
 	if(track >= sp->tracks)
 	{	//If this is an invalid track
