@@ -5498,6 +5498,7 @@ int eof_menu_file_gp_import(void)
 		else
 		{	//A project was already open
 			(void) eof_gp_import_common(returnedfn);
+			eof_init_after_load(0);
 		}
 		(void) replace_filename(eof_last_gp_path, returnedfn_path, "", 1024);	//Set the last loaded GP file path
 	}
