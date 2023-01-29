@@ -2689,15 +2689,15 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 		if(eof_use_ts && !eof_song->tags->tempo_map_locked)
 		{	//If user has enabled the preference to import time signatures, and the project's tempo map isn't locked (skip the prompt if importing a Go PlayAlong file)
 			eof_clear_input();
-			if(alert(NULL, "Import Guitar Pro file's time signatures?", NULL, "&Yes", "&No", 'y', 'n') == 1)
-			{	//If the user opts to import those from this Guitar Pro file into the active project
-				import_ts = 1;
-				if(undo_made && (*undo_made == 0))
-				{	//If calling function wants to track an undo state being made if time signatures are imported into the project
-					eof_prepare_undo(EOF_UNDO_TYPE_NONE);
-					*undo_made = 1;
-				}
+			// if(alert(NULL, "Import Guitar Pro file's time signatures?", NULL, "&Yes", "&No", 'y', 'n') == 1)
+			// {	//If the user opts to import those from this Guitar Pro file into the active project
+			import_ts = 1;
+			if(undo_made && (*undo_made == 0))
+			{	//If calling function wants to track an undo state being made if time signatures are imported into the project
+				eof_prepare_undo(EOF_UNDO_TYPE_NONE);
+				*undo_made = 1;
 			}
+			// }
 		}
 		else
 		{	//TS change importing is being skipped
@@ -5193,7 +5193,7 @@ int eof_unwrap_gp_track(struct eof_guitar_pro_struct *gp, unsigned long track, c
 	unsigned long moved_past_measure_before_repeat = 0; // Ends repeat logic and applies offset for future measures
 #ifdef GP_IMPORT_DEBUG
 	// Used to log repeat sections' logic and effect on song building
-	static const unsigned long debug_array_size = 256;
+	static const unsigned long debug_array_size = 1024;
 	unsigned long debug_measures_order[debug_array_size];
 	unsigned long debug_repeat_logic_1[debug_array_size];
 	unsigned long debug_repeat_logic_2[debug_array_size];
@@ -5322,7 +5322,7 @@ int eof_unwrap_gp_track(struct eof_guitar_pro_struct *gp, unsigned long track, c
 				oldnotecount = tp->notes;
 
 				if(!eof_copy_notes_in_beat_range(eof_song, gp->track[track], measuremap[currentmeasure], gp->measure[currentmeasure].num, dsp, tp, beatctr, repeat_ongoing, &current_repeat_padding_1,
-					&measure_start_fpos_1, repeat_tot_padding_1))
+					&measure_start_fpos_1, repeat_tot_padding_1, track == 0))
 				{	//If there was an error unwrapping the repeat into the new pro guitar track
 					eof_log("\tError unwrapping beats (normal notes)", 1);
 					free(measuremap);
@@ -5349,7 +5349,7 @@ int eof_unwrap_gp_track(struct eof_guitar_pro_struct *gp, unsigned long track, c
 				oldnotecount = tp->notes;
 
 				if(!eof_copy_notes_in_beat_range(eof_song, gp->track[track], measuremap[currentmeasure], gp->measure[currentmeasure].num, dsp, tp, beatctr, repeat_ongoing, &current_repeat_padding_2,
-					&measure_start_fpos_2, repeat_tot_padding_2))
+					&measure_start_fpos_2, repeat_tot_padding_2, track == 0))
 				{	//If there was an error unwrapping tech notes within the repeat into the new pro guitar track
 					eof_log("\tError unwrapping beats (tech notes)", 1);
 					free(measuremap);
@@ -5693,7 +5693,7 @@ int eof_unwrap_gp_track(struct eof_guitar_pro_struct *gp, unsigned long track, c
 }
 
 char eof_copy_notes_in_beat_range(EOF_SONG *ssp, EOF_PRO_GUITAR_TRACK *source, unsigned long startbeat, unsigned long numbeats, EOF_SONG *dsp, EOF_PRO_GUITAR_TRACK *dest, unsigned long destbeat,
-	unsigned long is_repeat_unwrap, double *repeat_padding, double *measure_start_fpos, double total_repeat_padding)
+	unsigned long is_repeat_unwrap, double *repeat_padding, double *measure_start_fpos, double total_repeat_padding, char set_tempo)
 {
 	unsigned long ctr;
 	unsigned long beatnum, endbeatnum;
@@ -5739,12 +5739,21 @@ char eof_copy_notes_in_beat_range(EOF_SONG *ssp, EOF_PRO_GUITAR_TRACK *source, u
 			eof_chart_length = dsp->beat[dsp->beats - 1]->pos;	//Alter the chart length so that the full transcription will display
 		}
 
+		// Make sure tempo is set for very long notes
+		if (set_tempo) {
+			unsigned int iterations = 0;
+			for (unsigned int i = destbeat; i < destbeat + endbeatnum - beatnum; i++) {
+				dsp->beat[i]->ppqn = ssp->beat[startbeat + iterations]->ppqn;
+				iterations++;
+			}
+		}
+
 		notepos = eof_get_porpos_sp(ssp, source->note[ctr]->pos);									//Get the note's position as a percentage within its beat
 		noteendpos = eof_get_porpos_sp(ssp, source->note[ctr]->pos + source->note[ctr]->length);	//Get the note end's end position as a percentage within its beat
 
 		// Get the original position data from the GP song structure, to use the same relative positions in the new structure
-		long orig_pos = eof_put_porpos_sp(dsp, beatnum, notepos, 0.0);
-		long orig_end = eof_put_porpos_sp(dsp, endbeatnum, noteendpos, 0.0);
+		long orig_pos = eof_put_porpos_sp(ssp, beatnum, notepos, 0.0);
+		long orig_end = eof_put_porpos_sp(ssp, endbeatnum, noteendpos, 0.0);
 
 		if (orig_start_pos_in_measure == 0 && startbeat != 0) {
 			orig_start_pos_in_measure = pos1;
@@ -5756,11 +5765,11 @@ char eof_copy_notes_in_beat_range(EOF_SONG *ssp, EOF_PRO_GUITAR_TRACK *source, u
 
 #ifdef GP_IMPORT_DEBUG
 		if (is_repeat_unwrap) {
-			(void) snprintf(eof_log_string, sizeof(eof_log_string) - 1, "\t\t (repeat) GP note ix: %lu - Position %lu (pad:%f) (orig: %ld -> %ld) Measure start at %ld", ctr, newpos, total_repeat_padding, orig_pos, orig_end, orig_start_pos_in_measure);
+			(void) snprintf(eof_log_string, sizeof(eof_log_string) - 1, "\t\t (repeat) GP note ix: %lu - Position %lu (pad:%f) (orig: %ld -> %ld) Beat: %ld", ctr, newpos, total_repeat_padding, orig_pos, orig_end, beatnum);
 			eof_log(eof_log_string, 1);
 		}
 		else {
-			(void) snprintf(eof_log_string, sizeof(eof_log_string) - 1, "\t\t\t GP note ix: %lu - Position %lu (pad:%f) (orig: %ld -> %ld) Measure start at %ld", ctr, newpos, total_repeat_padding, orig_pos, orig_end, orig_start_pos_in_measure);
+			(void) snprintf(eof_log_string, sizeof(eof_log_string) - 1, "\t\t\t GP note ix: %lu - Position %lu (pad:%f) (orig: %ld -> %ld) Beat: %ld", ctr, newpos, total_repeat_padding, orig_pos, orig_end, beatnum);
 			eof_log(eof_log_string, 1);
 		}
 #endif
@@ -5794,6 +5803,14 @@ char eof_copy_notes_in_beat_range(EOF_SONG *ssp, EOF_PRO_GUITAR_TRACK *source, u
 #endif
 	}//For each note in the source track
 
+	// Make sure tempo is set even if there were no notes in the measure
+	if (set_tempo) {
+		unsigned int iterations = 0;
+		for (unsigned int i = destbeat; i < destbeat + numbeats; i++) {
+			dsp->beat[i]->ppqn = ssp->beat[startbeat + iterations]->ppqn;
+			iterations++;
+		}
+	}
 	double beat_length = eof_calc_beat_length(dsp, destbeat);
 	double measure_length = numbeats * beat_length;
 
