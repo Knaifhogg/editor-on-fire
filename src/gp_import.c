@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include "gp_import.h"
 
 #ifdef USEMEMWATCH
@@ -5187,6 +5188,7 @@ int eof_unwrap_gp_track(struct eof_guitar_pro_struct *gp, unsigned long track, c
 	double measure_start_fpos_2 = 0; // Used to store where next measure will start (easier handling of repeats)
 	double repeat_tot_padding_1 = 0; // Keeps track of how much space repeated measures have added, helps placing future measures correctly
 	double repeat_tot_padding_2 = 0; // Keeps track of how much space repeated measures have added, helps placing future measures correctly
+	bool moved_past_first_measure = false;
 	unsigned long measure_has_rewound = 0; // Catches whenever we regress in the measure progression (i.e. repeating sections)
 	unsigned long repeat_ongoing = 0; // Informs note copier that these notes push future measures' offset
 	unsigned long measure_that_left_for_repeat = 0; // Keeps track of where a repeat has been passed
@@ -5208,7 +5210,8 @@ int eof_unwrap_gp_track(struct eof_guitar_pro_struct *gp, unsigned long track, c
 
 	while(currentmeasure < gp->measures)
 	{	//Continue until all repeats of all measures have been processed
-		measure_has_rewound = prev_measure >= currentmeasure && currentmeasure != 0;
+		measure_has_rewound = prev_measure >= currentmeasure && moved_past_first_measure;
+		moved_past_first_measure = true; // Set flag already since the logic check above is the only point where it is used
 		prev_measure = currentmeasure;
 		if (measure_has_rewound) {
 			repeat_ongoing = 1;
