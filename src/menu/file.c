@@ -5105,11 +5105,12 @@ int eof_gp_import_gp_multi_track_for_rs(int importvoice)
 		for (unsigned int i = 0; i < number_of_tracks; i++) {
 
 			(void) snprintf(eof_etext, sizeof(eof_etext) - 1, "Import GP track into which pro track?");
+			(void) snprintf(eof_etext2, sizeof(eof_etext2) - 1, "Guitar Pro track: %s (%u/%u)", track_names[i], i+1, number_of_tracks);
 			DIALOG eof_gp_import_track_dialog[] =
 			{
 				/* (proc)            (x)  (y)  (w)  (h)  (fg) (bg) (key) (flags) (d1) (d2) (dp)            (dp2) (dp3) */
 				{ d_agup_window_proc,0,   48,  500, 232, 2,   23,  0,    0,      0,   0,   eof_etext,       NULL, NULL },
-				{ d_agup_text_proc,  12,  84,  64,  8,   2,   23,  0,    0,      0,   0,   track_names[i],       NULL, NULL },
+				{ d_agup_text_proc,  12,  84,  64,  8,   2,   23,  0,    0,      0,   0,   eof_etext2,      NULL, NULL },
 				{ d_agup_list_proc,  12,  100, 400, 108, 2,   23,  0,    0,      0,   0,   (void *)eof_gp_rs_tracks_list, NULL, NULL },
 				{ d_agup_button_proc,12,  230, 130, 28,  2,   23,  '\r', D_EXIT, 0,   0,   "OK",       NULL, NULL },
 				{ d_agup_button_proc,170, 230, 130, 28,  2,   23,  '\r', D_EXIT, 0,   0,   "Skip",       NULL, NULL },
