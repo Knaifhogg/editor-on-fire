@@ -2,6 +2,7 @@
 #define EOF_MAIN_H
 
 #include <allegro.h>
+#include <stdbool.h>
 #include "alogg/include/alogg.h"
 #include "modules/wfsel.h"
 #include "window.h"
@@ -11,7 +12,6 @@
 #include "editor.h"
 #include "pathing.h"
 #include "music_pos.h"
-
 #define EOF_VERSION_STRING "EOF v1.8RC12"
 #define EOF_COPYRIGHT_STRING "(c)2008-2020 T^3 Software."
 
