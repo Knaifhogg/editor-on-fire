@@ -207,7 +207,7 @@ MENU eof_song_menu[] =
 	{"&INI Settings", eof_menu_song_ini_settings, NULL, 0, NULL},
 	{"Properties\tF9", eof_menu_song_properties, NULL, 0, NULL},
 	{"&Leading Silence", eof_menu_song_add_silence, NULL, 0, NULL},
-	{"Add 3s count-in phrase", eof_menu_song_add_count_in, NULL, 0, NULL},
+	{"Add count-in phrase", eof_menu_song_add_count_in, NULL, 0, NULL},
 	{"&Disable click and drag", eof_menu_song_disable_click_drag, NULL, 0, NULL},
 	{"Pro &Guitar", NULL, eof_song_proguitar_menu, 0, NULL},
 	{"&Rocksmith", NULL, eof_song_rocksmith_menu, 0, NULL},
@@ -2085,8 +2085,8 @@ static long get_ogg_length(const char * fn)
 DIALOG eof_add_count_phrase_dialog[] =
 {
 	/* (proc)                 (x)  (y)  (w)  (h)  (fg) (bg) (key) (flags)    (d1)  (d2) (dp)                     (dp2) (dp3) */
-	{ d_agup_window_proc,  	  0,   48,  470, 128, 2,   23,  0,    0,          0,   0,   "Add 3s count-in phrase",          NULL, NULL },
-	{ d_agup_text_proc,       16,  80,  110, 20,  2,   23,  0,    0,          0,   0,   "This will add 3 seconds of silence, and create beats", NULL, NULL },
+	{ d_agup_window_proc,  	  0,   48,  470, 128, 2,   23,  0,    0,          0,   0,   "Add count-in phrase",          NULL, NULL },
+	{ d_agup_text_proc,       16,  80,  110, 20,  2,   23,  0,    0,          0,   0,   "This will add around 3 seconds of silence, and create beats", NULL, NULL },
 	{ d_agup_text_proc,       16,  100, 110, 20,  2,   23,  0,    0,          0,   0,   "then place a COUNT phrase in first beat", NULL, NULL },
 	{ d_agup_button_proc,	  12,  140, 130, 28,  2,   23,  '\r', D_EXIT, 0,   0,   "OK",       NULL, NULL },
 	{ d_agup_button_proc,	  170, 140, 130, 28,  2,   23,  '\r', D_EXIT, 0,   0,   "Only add beats",       NULL, NULL },
@@ -2097,6 +2097,8 @@ DIALOG eof_add_count_phrase_dialog[] =
 int eof_menu_song_add_count_in(void)
 {
 	unsigned long silence_length = 0;
+	double beat_length = 0;
+	unsigned num = 4, den = 4;
 	long current_length = 0;
 	long after_silence_length = 0;
 	long adjust = 0;
@@ -2140,43 +2142,22 @@ int eof_menu_song_add_count_in(void)
 
 	//Add silence
 	eof_prepare_undo(EOF_UNDO_TYPE_SILENCE);
-		// if(eof_leading_silence_dialog[2].flags & D_SELECTED)
-		// {	//Add milliseconds
-		// 	silence_length = atoi(eof_etext);
-		// }
-		// else if(eof_leading_silence_dialog[3].flags & D_SELECTED)
-		// {	//Add beats
-	// beat_length = eof_calc_beat_length(eof_song, 0);
-	silence_length = 3000.0;
-		// }
-		// else if(eof_leading_silence_dialog[5].flags & D_SELECTED)
-		// {	//Pad milliseconds
-		// 	silence_length = atoi(eof_etext);
-		// 	if(silence_length > eof_song->beat[0]->pos)
-		// 	{
-		// 		silence_length -= eof_song->beat[0]->pos;
-		// 	}
-		// }
-		// else if(eof_leading_silence_dialog[6].flags & D_SELECTED)
-		// {	//Pad beats
-		// 	beat_length = eof_calc_beat_length(eof_song, 0);
-		// 	silence_length = beat_length * (double)atoi(eof_etext);
-		// 	printf("%lu\n", silence_length);
-		// 	if(silence_length > eof_song->beat[0]->pos)
-		// 	{
-		// 		silence_length -= eof_song->beat[0]->pos;
-		// 	}
-		// }
 
-	// if(
-	// 	// (eof_leading_silence_dialog[9].flags == D_SELECTED) && 
-	// 	eof_supports_oggcat)
-	// {	//User opted to use oggCat
-	// 	creationmethod = 9;		//Remember this as the default next time
-	// 	retval = eof_add_silence(eof_loaded_ogg_name, silence_length);
-	// }
-	// else
-	// {	//User opted to re-encode
+	// Get at least 2 measures
+	beat_length = eof_calc_beat_length(eof_song, 0);
+	(void) eof_get_ts(eof_song, &num, &den, 0);	//Lookup any time signature defined at the beat
+
+	silence_length = 3000.0;
+	double silence_length_for_measure_sync = silence_length;
+
+	for (unsigned int n = 0; n*num*beat_length < silence_length; n++) {
+		// Iterate until n measures is longer than minimum silence length
+		silence_length_for_measure_sync = (n+1)*num*beat_length;
+	}
+
+	silence_length = silence_length_for_measure_sync - beat_length;
+
+
 	(void) replace_filename(mp3fn, eof_song_path, "original.mp3", 1024);
 	if (!only_add_beats) {
 
@@ -2214,8 +2195,6 @@ int eof_menu_song_add_count_in(void)
 	}
 	else
 	{	//Operation succeeded, adjust notes/beats
-		// if(eof_leading_silence_dialog[8].flags & D_SELECTED)
-		// {
 		if(after_silence_length != 0)
 		{
 			adjust = after_silence_length - current_length;
@@ -2238,7 +2217,7 @@ int eof_menu_song_add_count_in(void)
 			}
 		}
 		(void) eof_adjust_notes(ULONG_MAX, adjust);
-		// }
+
 		eof_fixup_notes(eof_song);
 		eof_calculate_beats(eof_song);
 		eof_fix_window_title();
