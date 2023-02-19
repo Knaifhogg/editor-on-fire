@@ -5763,7 +5763,7 @@ char eof_copy_notes_in_beat_range(EOF_SONG *ssp, EOF_PRO_GUITAR_TRACK *source, u
 		}
 		unsigned long orig_measure_diff = orig_pos - orig_start_pos_in_measure;
 
-		newpos = (long)(*measure_start_fpos) + orig_measure_diff;		//Get the position for the copied note
+		newpos = (long)(*measure_start_fpos + 0.5) + orig_measure_diff;		//Get the position for the copied note
 		newend = newpos + orig_end - orig_pos;		//Get the end position for the copied note
 
 #ifdef GP_IMPORT_DEBUG
