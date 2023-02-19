@@ -2149,8 +2149,8 @@ int eof_menu_song_add_count_in(void)
 
 	silence_length = 3000.0;
 	double silence_length_for_measure_sync = silence_length;
-
-	for (unsigned int n = 0; n*num*beat_length < silence_length; n++) {
+	unsigned int n = 0;
+	for (n=0; n*num*beat_length < silence_length; n++) {
 		// Iterate until n measures is longer than minimum silence length
 		silence_length_for_measure_sync = (n+1)*num*beat_length;
 	}
@@ -2226,7 +2226,11 @@ int eof_menu_song_add_count_in(void)
 
 	eof_menu_beat_reset_offset();
 	(void) eof_song_add_text_event(eof_song, 0, "COUNT", 0, EOF_EVENT_FLAG_RS_PHRASE, 0);	//Add it as a temporary event at the first beat
-
+	// Place intro section if there wasn't a section otherwise you can't practice the first section
+	if (eof_song->beat[n*num]->contained_rs_section_event < 0) {
+		(void) eof_song_add_text_event(eof_song, n*num, "intro", 0, (EOF_EVENT_FLAG_RS_SECTION | EOF_EVENT_FLAG_RS_PHRASE), 0);	//Add it as a temporary event at the first beat
+	}
+	
 	eof_show_mouse(NULL);
 	eof_cursor_visible = 1;
 	eof_pen_visible = 1;
