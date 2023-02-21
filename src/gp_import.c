@@ -3876,6 +3876,11 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 						eof_log(eof_log_string, 1);
 #endif					
 					}
+					while(beat_position + 1 >= eof_song->beats)
+					{	//If there aren't enough beats in the project for some reason, add enough to continue
+						if(eof_song_append_beats(eof_song, 1))
+							continue;	//If a beat was appended to the project, add more as needed
+					}
 					eof_song->beat[beat_position]->ppqn = (60000000.0 / previous_tempo) + 0.5;		//Convert BPM to ppqn, rounding up					}
 					eof_calculate_range_of_beats_logic(eof_song, curbeat, beat_position); // This is run again later but this ensure fpos is correct if this is the first beat increase after a bpm change
 
@@ -3891,12 +3896,6 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 						beat_position = (measure_position + note_duration) * curnum;
 						partial_beat_position = (measure_position + note_duration) * curnum - beat_position;	//How far into this beat the note ends
 						beat_position += curbeat;	//Add the number of beats into the track the current measure is
-						for (unsigned long i = curbeat; i <= beat_position; i++) {
-							eof_song->beat[i]->ppqn = (60000000.0 / previous_tempo) + 0.5;		//Convert BPM to ppqn, rounding up					}
-						}
-						eof_calculate_range_of_beats_logic(eof_song, curbeat, beat_position);
-
-						beat_position -= skipbeatsourcectr;	//Offset by the number of beats being skipped
 
 						while(beat_position + 1 >= eof_song->beats)
 						{	//If there aren't enough beats in the project for some reason, add enough to continue
@@ -3940,6 +3939,13 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 							free(strings);
 							return NULL;
 						}//If there aren't enough beats in the project for some reason, add enough to continue
+
+						for (unsigned long i = curbeat; i <= beat_position; i++) {
+							eof_song->beat[i]->ppqn = (60000000.0 / previous_tempo) + 0.5;		//Convert BPM to ppqn, rounding up					}
+						}
+						eof_calculate_range_of_beats_logic(eof_song, curbeat, beat_position);
+
+						beat_position -= skipbeatsourcectr;	//Offset by the number of beats being skipped
 
 						beat_length = eof_calc_beat_length(eof_song, beat_position);
 						lastendpos = eof_song->beat[beat_position]->fpos + (beat_length * partial_beat_position);
