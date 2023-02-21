@@ -4802,7 +4802,6 @@ DIALOG eof_gp_import_dialog[] =
 	/* (proc)            (x)  (y)  (w)  (h)  (fg) (bg) (key) (flags) (d1) (d2) (dp)            (dp2) (dp3) */
 	{ d_agup_window_proc,0,   48,  500, 232, 2,   23,  0,    0,      0,   0,   "Import which GP track into the project's active track?",       NULL, NULL },
 	{ d_agup_list_proc,  12,  84,  400, 138, 2,   23,  0,    0,      0,   0,   (void *)eof_gp_tracks_list, NULL, NULL },
-	// { d_agup_push_proc,  425, 106, 68,  28,  2,   23,  '\r',  D_EXIT, 0,   0,   "All",      NULL, (void *)eof_gp_import_track },
 	{ d_agup_push_proc,  425, 84,  68,  28,  2,   23,  'i',  D_EXIT, 0,   0,   "&Import",      NULL, (void *)eof_gp_import_track },
 	{ d_agup_button_proc,12,  235, 240, 28,  2,   23,  '\r', D_EXIT, 0,   0,   "Cancel",       NULL, NULL },
 	{ NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, NULL, NULL, NULL }
@@ -5254,6 +5253,24 @@ int eof_gp_import_gp_multi_track_for_rs(int importvoice)
 					}
 				}
 
+				unsigned long defaulttone = 0;
+				unsigned long beat_position = 0;
+
+				// Copy tone changes
+				for(ctr = 0; ctr < eof_parsed_gp_file->track[selected]->tonechanges; ctr++) {
+					if((eof_parsed_gp_file->track[selected]->defaulttone[0] != '\0') &&
+						(!strcmp(eof_parsed_gp_file->track[selected]->defaulttone, eof_parsed_gp_file->track[selected]->tonechange[ctr].name)))
+					{	//If the tone being changed to is the currently defined default tone
+						defaulttone = 1;
+					}
+					else {
+						defaulttone = 0;
+					}
+					(void) ustrcpy(eof_etext, eof_parsed_gp_file->track[selected]->tonechange[ctr].name);
+					beat_position = eof_song->beat[eof_parsed_gp_file->track[selected]->tonechange[ctr].start_pos]->pos;
+					(void) eof_track_add_section(eof_song, eof_selected_track, EOF_RS_TONE_CHANGE, 0, beat_position, defaulttone, 0, eof_etext);
+				}
+
 				//Copy the imported track's tuning, string count, fret count and capo position into the active track
 				if(eof_detect_string_gem_conflicts(eof_song->pro_guitar_track[tracknum], eof_parsed_gp_file->track[selected]->numstrings))
 				{	//If the track being imported has a different string count that would cause notes to be removed from the track
@@ -5452,6 +5469,24 @@ int eof_gp_import_guitar_track(int importvoice)
 			{	//If this tremolo phrase doesn't overlap with any existing tremolo phrases in the active track
 				(void) eof_track_add_section(eof_song, eof_selected_track, EOF_TREMOLO_SECTION, eof_note_type, ptr->start_pos, ptr->end_pos, 0, NULL);	//Copy it to the active track difficulty
 			}
+		}
+
+		unsigned long defaulttone = 0;
+		unsigned long beat_position = 0;
+
+		// Copy tone changes
+		for(ctr = 0; ctr < eof_parsed_gp_file->track[selected]->tonechanges; ctr++) {
+			if((eof_parsed_gp_file->track[selected]->defaulttone[0] != '\0') &&
+				(!strcmp(eof_parsed_gp_file->track[selected]->defaulttone, eof_parsed_gp_file->track[selected]->tonechange[ctr].name)))
+			{	//If the tone being changed to is the currently defined default tone
+				defaulttone = 1;
+			}
+			else {
+				 defaulttone = 0;
+			}
+			(void) ustrcpy(eof_etext, eof_parsed_gp_file->track[selected]->tonechange[ctr].name);
+			beat_position = eof_song->beat[eof_parsed_gp_file->track[selected]->tonechange[ctr].start_pos]->pos;
+			(void) eof_track_add_section(eof_song, eof_selected_track, EOF_RS_TONE_CHANGE, 0, beat_position, defaulttone, 0, eof_etext);
 		}
 
 		//Copy the imported track's tuning, string count, fret count and capo position into the active track

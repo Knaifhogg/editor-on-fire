@@ -3599,16 +3599,48 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 								gp->text_event[gp->text_events]->pos = curbeat - skipbeatsourcectr;
 								gp->text_event[gp->text_events]->track = 0;
 								gp->text_event[gp->text_events]->is_temporary = 1;	//Track that the event's beat number has already been determined
+
+								// Parse "dtone_" and "tone_" from free text each beat to detect tone changes
+								bool added_text_event = false;					
+								bool tone_section = false;
+								bool default_tone = false;
+
 								if(rssectionname)
 								{	//If this beat text matches a valid Rocksmith section name, import it with the section's native name
 									(void) ustrcpy(gp->text_event[gp->text_events]->text, rssectionname);
 									gp->text_event[gp->text_events]->flags = EOF_EVENT_FLAG_RS_SECTION;	//Ensure this will be detected as a RS section
-									gp->text_events++;
+									added_text_event = true;
 								}
 								else if(!eof_gp_import_preference_1)
 								{	//If the user preference to discard beat text that doesn't match a RS section isn't enabled, import it as a RS phrase
 									(void) ustrcpy(gp->text_event[gp->text_events]->text, buffer);	//Copy the beat text as-is
 									gp->text_event[gp->text_events]->flags = EOF_EVENT_FLAG_RS_PHRASE;	//Ensure this will be detected as a RS phrase
+									added_text_event = true;
+								}
+
+								if (added_text_event) {
+									if (strstr(gp->text_event[gp->text_events]->text, "dtone_") != NULL) {
+										tone_section = true;
+										default_tone = true;
+									}
+									else if (strstr(gp->text_event[gp->text_events]->text, "tone_") != NULL) {
+										tone_section = true;
+									}
+									if (tone_section) {
+										unsigned long count = gp->track[ctr2]->tonechanges;
+										gp->track[ctr2]->tonechange[count].start_pos = gp->text_event[gp->text_events]->pos;
+										(void) ustrcpy(gp->track[ctr2]->tonechange[count].name, gp->text_event[gp->text_events]->text);
+
+										if(default_tone)
+										{	//The project format uses this field as a boolean to identify if this is the default tone for the track
+											strncpy(gp->track[ctr2]->defaulttone, gp->track[ctr2]->tonechange[count].name, EOF_SECTION_NAME_LENGTH);
+										}
+										gp->track[ctr2]->tonechanges++;
+#ifdef GP_IMPORT_DEBUG
+										(void) snprintf(eof_log_string, sizeof(eof_log_string) - 1, "\t\t\tSaving as tone change (track: %lu beat: %lu): %s", ctr2, gp->track[ctr2]->tonechange[count].start_pos, gp->track[ctr2]->tonechange[count].name);
+										eof_log(eof_log_string, 1);
+#endif
+									}
 									gp->text_events++;
 								}
 								else
@@ -5129,6 +5161,7 @@ int eof_unwrap_gp_track(struct eof_guitar_pro_struct *gp, unsigned long track, c
 	tp->numfrets = gp->track[track]->numfrets;
 	tp->numstrings = gp->track[track]->numstrings;
 	tp->capo = gp->track[track]->capo;
+	strcpy(tp->defaulttone,gp->track[track]->defaulttone);
 	tp->note = tp->pgnote;	//Put the regular pro guitar note array into effect
 	tp->parent = NULL;
 	memcpy(tp->tuning, gp->track[track]->tuning, sizeof(char) * EOF_TUNING_LENGTH);
@@ -5212,8 +5245,15 @@ int eof_unwrap_gp_track(struct eof_guitar_pro_struct *gp, unsigned long track, c
 	unsigned long debug_repeat_logic_7[debug_array_size];
 	unsigned long debug_last_measure_index = 0;
 	unsigned long debug_iterator = 0;
-#endif
 
+	(void) snprintf(eof_log_string, sizeof(eof_log_string) - 1, "Tone changes in GP track %lu: %lu", track, gp->track[track]->tonechanges);
+	eof_log(eof_log_string, 1);
+
+	for (unsigned long tone = 0; tone < gp->track[track]->tonechanges; tone++) {
+		(void) snprintf(eof_log_string, sizeof(eof_log_string) - 1, "Tone change %lu: %s (pos: %lu)", tone, gp->track[track]->tonechange[tone].name, gp->track[track]->tonechange[tone].start_pos);
+		eof_log(eof_log_string, 1);
+	}
+#endif
 	while(currentmeasure < gp->measures)
 	{	//Continue until all repeats of all measures have been processed
 		measure_has_rewound = prev_measure >= currentmeasure && moved_past_first_measure;
@@ -5383,6 +5423,23 @@ int eof_unwrap_gp_track(struct eof_guitar_pro_struct *gp, unsigned long track, c
 				}
 				eof_menu_pro_guitar_track_set_tech_view_state(gp->track[track], 0);	//Disable tech view for source track
 				eof_menu_pro_guitar_track_set_tech_view_state(tp, 0);				//disable tech view for destination track
+
+				// See if any tone change applies for a beat in the measure, and unwrap the beat position
+				for (unsigned long tone = 0; tone < gp->track[track]->tonechanges; tone++) {
+					unsigned long tone_change_beat = gp->track[track]->tonechange[tone].start_pos;
+					if (tone_change_beat >= measuremap[currentmeasure] &&
+						tone_change_beat < measuremap[currentmeasure] + gp->measure[currentmeasure].num) {
+						unsigned long unwrap_beat = tone_change_beat - measuremap[currentmeasure] + beatctr;
+
+						memcpy(&tp->tonechange[tp->tonechanges], &gp->track[track]->tonechange[tone], sizeof(EOF_PHRASE_SECTION));	//Copy the text event
+						tp->tonechange[tp->tonechanges].start_pos = unwrap_beat;
+#ifdef GP_IMPORT_DEBUG
+						(void) snprintf(eof_log_string, sizeof(eof_log_string) - 1, "Tone change %lu: %s (beat: %lu) unwrapped -> beat: %lu", tone, gp->track[track]->tonechange[tone].name, gp->track[track]->tonechange[tone].start_pos, unwrap_beat);
+						eof_log(eof_log_string, 1);
+#endif
+						tp->tonechanges++;
+					}
+				}
 			}
 
 			moved_past_measure_before_repeat = 0;
