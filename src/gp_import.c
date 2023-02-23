@@ -5347,6 +5347,7 @@ int eof_unwrap_gp_track(struct eof_guitar_pro_struct *gp, unsigned long track, c
 					eof_destroy_song(dsp);	//Destroy working project
 					return 5;
 				}
+				eof_chart_length = dsp->beat[dsp->beats - 1]->pos;	//Alter the chart length so that the full transcription will display
 			}
 
 			//Update the time signature if necessary
