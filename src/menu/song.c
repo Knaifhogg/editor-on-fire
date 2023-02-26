@@ -2224,11 +2224,13 @@ int eof_menu_song_add_count_in(void)
 		eof_truncate_chart(eof_song);	//Update number of beats and the chart length as appropriate
 	}
 
+	eof_song->keep_measures_in_place = 1;
+	eof_song->auto_accept_add_new_beats = 1;
 	eof_menu_beat_reset_offset();
 	(void) eof_song_add_text_event(eof_song, 0, "COUNT", 0, EOF_EVENT_FLAG_RS_PHRASE, 0);	//Add it as a temporary event at the first beat
 	// Place intro section if there wasn't a section otherwise you can't practice the first section
-	if (eof_song->beat[n*num]->contained_rs_section_event < 0) {
-		(void) eof_song_add_text_event(eof_song, n*num, "intro", 0, (EOF_EVENT_FLAG_RS_SECTION | EOF_EVENT_FLAG_RS_PHRASE), 0);	//Add it as a temporary event at the first beat
+	if (eof_song->beat[(n-1)*num]->contained_rs_section_event < 0) {
+		(void) eof_song_add_text_event(eof_song, (n-1)*num, "intro", 0, (EOF_EVENT_FLAG_RS_SECTION | EOF_EVENT_FLAG_RS_PHRASE), 0);	//Add it as a temporary event at the first beat
 	}
 	
 	eof_show_mouse(NULL);

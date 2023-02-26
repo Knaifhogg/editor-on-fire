@@ -2584,7 +2584,7 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 						else
 						{	//Otherwise this section marker is valid as a RS section, then import it with the section's native name
 							(void) ustrcpy(gp->text_event[gp->text_events]->text, rssectionname);
-							gp->text_event[gp->text_events]->flags = EOF_EVENT_FLAG_RS_SECTION;	//Ensure this will be detected as a RS section
+							gp->text_event[gp->text_events]->flags = EOF_EVENT_FLAG_RS_SECTION | EOF_EVENT_FLAG_RS_PHRASE;	//Ensure this will be detected as a RS section
 						}
 						gp->text_event[gp->text_events]->is_temporary = 0;	//This will be used to track whether the measure number was converted to the proper beat number below
 						gp->text_events++;
@@ -3608,7 +3608,7 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 								if(rssectionname)
 								{	//If this beat text matches a valid Rocksmith section name, import it with the section's native name
 									(void) ustrcpy(gp->text_event[gp->text_events]->text, rssectionname);
-									gp->text_event[gp->text_events]->flags = EOF_EVENT_FLAG_RS_SECTION;	//Ensure this will be detected as a RS section
+									gp->text_event[gp->text_events]->flags = EOF_EVENT_FLAG_RS_SECTION | EOF_EVENT_FLAG_RS_PHRASE;	//Ensure this will be detected as a RS section
 									added_text_event = true;
 								}
 								else if(!eof_gp_import_preference_1)
@@ -5767,6 +5767,7 @@ char eof_copy_notes_in_beat_range(EOF_SONG *ssp, EOF_PRO_GUITAR_TRACK *source, u
 	long newpos, newend;
 	double notepos, noteendpos;
 	unsigned long orig_start_pos_in_measure = 0; // Used to know the relative note position to the start of the measure
+	unsigned long stored_eof_chart_length = eof_chart_length; // Used to ignore chart length during an unwrapping
 
 	eof_log("eof_copy_notes_in_beat_range() entered", 2);
 
@@ -5783,9 +5784,12 @@ char eof_copy_notes_in_beat_range(EOF_SONG *ssp, EOF_PRO_GUITAR_TRACK *source, u
 		if(source->note[ctr]->pos < ssp->beat[startbeat]->pos)
 			continue;	//If this note is before or after the target range of beats, skip it
 		unsigned long pos1 = ssp->beat[startbeat]->pos;
-		
+
+		stored_eof_chart_length = eof_chart_length;
+		eof_chart_length = ULONG_MAX;
 		beatnum = eof_get_beat(ssp, source->note[ctr]->pos);					//Find which beat this note is within
 		endbeatnum = eof_get_beat(ssp, source->note[ctr]->pos + source->note[ctr]->length);	//Find which beat this note ends within
+
 		if(!eof_beat_num_valid(ssp, beatnum) || !eof_beat_num_valid(ssp, endbeatnum))
 			continue;	//If the beat positions were not found, skip this note
 
@@ -5803,7 +5807,7 @@ char eof_copy_notes_in_beat_range(EOF_SONG *ssp, EOF_PRO_GUITAR_TRACK *source, u
 					return 0;	//Return error
 				}
 			}
-			eof_chart_length = dsp->beat[dsp->beats - 1]->pos;	//Alter the chart length so that the full transcription will display
+			stored_eof_chart_length = dsp->beat[dsp->beats - 1]->pos;	//Alter the chart length so that the full transcription will display
 		}
 
 		// Make sure tempo is set for very long notes
@@ -5840,6 +5844,8 @@ char eof_copy_notes_in_beat_range(EOF_SONG *ssp, EOF_PRO_GUITAR_TRACK *source, u
 			eof_log(eof_log_string, 1);
 		}
 #endif
+		eof_chart_length = stored_eof_chart_length;
+
 		if((newpos < 0) || (newend < 0))
 		{	//If the positioning for the copied note couldn't be determined
 			eof_log("\tError finding position for unwrapped note", 1);
