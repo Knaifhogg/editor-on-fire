@@ -1025,7 +1025,7 @@ int eof_menu_beat_reset_offset(void)
 	if(eof_song->beat[0]->pos >= eof_song->beat[1]->pos - eof_song->beat[0]->pos)
 	{	//If the MIDI delay is at least one beat length long, offer to insert as many evenly spaced beats as possible
 		eof_clear_input();
-		if(alert(NULL, "Insert evenly spaced beats at the beginning of the chart?", NULL, "&Yes", "&No", 'y', 'n') == 1)
+		if(eof_song->auto_accept_add_new_beats == 1 || alert(NULL, "Insert evenly spaced beats at the beginning of the chart?", NULL, "&Yes", "&No", 'y', 'n') == 1)
 		{	//If user opts to insert evenly spaced beats
 			while(eof_song->beat[0]->pos >= eof_song->beat[1]->pos - eof_song->beat[0]->pos)
 			{	//While the MIDI delay is still large enough to be moved back one beat
@@ -1042,7 +1042,7 @@ int eof_menu_beat_reset_offset(void)
 		}
 	}
 
-	if(eof_song->beat[0]->pos == 0)
+	if(eof_song->beat[0]->pos == 0 || eof_song->keep_measures_in_place == 1)
 	{	//If the beat push back completely filled the offset and the first beat marker is now at 0ms
 		return 1;	//No more changes are needed
 	}
