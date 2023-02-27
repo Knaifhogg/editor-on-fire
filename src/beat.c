@@ -747,6 +747,8 @@ int eof_song_append_beats(EOF_SONG * sp, unsigned long beats)
 		}
 		else
 		{	//Otherwise set this beat's tempo to 120BPM
+			eof_log("Adding beat with default BPM", 1);
+			sp->bpm = 120;
 			sp->beat[sp->beats - 1]->ppqn = (60000000.0 / sp->bpm) + 0.5;		//Convert BPM to ppqn, rounding up
 			sp->beat[sp->beats - 1]->fpos = 0;
 		}

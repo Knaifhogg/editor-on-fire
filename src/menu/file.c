@@ -5342,6 +5342,9 @@ int eof_gp_import_gp_multi_track_for_rs(int importvoice)
 	}//Only perform this action if a pro guitar/bass track is active
 
 	eof_log("\t\tImport complete", 1);
+	eof_calculate_beats(eof_song); // Update the beats created before track was known
+	eof_truncate_chart(eof_song);	//Update number of beats and the chart length as appropriate
+
 	return D_CLOSE;
 }
 
@@ -5747,9 +5750,8 @@ int eof_gp_import_common(const char *fn, bool multi_track)
 		return 1;	//Return failure
 	}
 
-	eof_song->keep_chart_length_over_music_length = 1;
+	eof_song->keep_chart_length_over_music_length = 0;
 	eof_log("Cleaning up beats", 1);
-	eof_truncate_chart(eof_song);	//Remove excess beat markers and update the eof_chart_length variable
 	eof_beat_stats_cached = 0;		//Mark the cached beat stats as not current
 	eof_log("Cleaning up imported notes", 1);
 	eof_track_find_crazy_notes(eof_song, eof_selected_track, 1);	//Mark notes that overlap others as crazy, if they don't begin at the same timestamp (ie. should become a normal chord)
