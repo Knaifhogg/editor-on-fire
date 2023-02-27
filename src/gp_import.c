@@ -35,6 +35,8 @@ char *eof_note_names_flat[12] =	{"A","Bb","B","C","Db","D","Eb","E","F","Gb","G"
 char **eof_note_names = eof_note_names_flat;
 #endif
 
+#define mMax(a,b) (a>b) ? (a) : (b)
+
 void pack_ReadWORDLE(PACKFILE *inf, unsigned *data)
 {
 	unsigned char buffer[2] = {0};
@@ -2682,7 +2684,7 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 				free(sync_points);
 			return NULL;
 		}
-		eof_chart_length = eof_song->beat[eof_song->beats - 1]->pos;	//Alter the chart length so that the full transcription will display
+		eof_chart_length = mMax(eof_chart_length,eof_song->beat[eof_song->beats - 1]->pos);	//Alter the chart length so that the full transcription will display
 	}
 	eof_clear_input();
 	if(!sync_points)
@@ -5347,7 +5349,7 @@ int eof_unwrap_gp_track(struct eof_guitar_pro_struct *gp, unsigned long track, c
 					eof_destroy_song(dsp);	//Destroy working project
 					return 5;
 				}
-				eof_chart_length = dsp->beat[dsp->beats - 1]->pos;	//Alter the chart length so that the full transcription will display
+				eof_chart_length = mMax(eof_chart_length, dsp->beat[dsp->beats - 1]->pos);	//Alter the chart length so that the full transcription will display
 			}
 
 			//Update the time signature if necessary
@@ -5790,8 +5792,10 @@ char eof_copy_notes_in_beat_range(EOF_SONG *ssp, EOF_PRO_GUITAR_TRACK *source, u
 		beatnum = eof_get_beat(ssp, source->note[ctr]->pos);					//Find which beat this note is within
 		endbeatnum = eof_get_beat(ssp, source->note[ctr]->pos + source->note[ctr]->length);	//Find which beat this note ends within
 
-		if(!eof_beat_num_valid(ssp, beatnum) || !eof_beat_num_valid(ssp, endbeatnum))
+		if(!eof_beat_num_valid(ssp, beatnum) || !eof_beat_num_valid(ssp, endbeatnum)) {
+			eof_chart_length = stored_eof_chart_length;
 			continue;	//If the beat positions were not found, skip this note
+		}
 
 		if(dsp->beats < destbeat + endbeatnum - startbeat + 2)
 		{
@@ -5807,7 +5811,7 @@ char eof_copy_notes_in_beat_range(EOF_SONG *ssp, EOF_PRO_GUITAR_TRACK *source, u
 					return 0;	//Return error
 				}
 			}
-			stored_eof_chart_length = dsp->beat[dsp->beats - 1]->pos;	//Alter the chart length so that the full transcription will display
+			stored_eof_chart_length = mMax(stored_eof_chart_length, dsp->beat[dsp->beats - 1]->pos);	//Alter the chart length so that the full transcription will display
 		}
 
 		// Make sure tempo is set for very long notes
