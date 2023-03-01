@@ -2155,7 +2155,7 @@ int eof_menu_song_add_count_in(void)
 		silence_length_for_measure_sync = (n+1)*num*beat_length;
 	}
 
-	silence_length = silence_length_for_measure_sync - beat_length;
+	silence_length = silence_length_for_measure_sync;
 
 
 	(void) replace_filename(mp3fn, eof_song_path, "original.mp3", 1024);
@@ -2224,7 +2224,7 @@ int eof_menu_song_add_count_in(void)
 		eof_truncate_chart(eof_song);	//Update number of beats and the chart length as appropriate
 	}
 
-	eof_song->keep_measures_in_place = 1;
+	eof_song->n_beats_in_measure = num;
 	eof_song->auto_accept_add_new_beats = 1;
 	eof_menu_beat_reset_offset();
 	(void) eof_song_add_text_event(eof_song, 0, "COUNT", 0, EOF_EVENT_FLAG_RS_PHRASE, 0);	//Add it as a temporary event at the first beat
@@ -2233,6 +2233,10 @@ int eof_menu_song_add_count_in(void)
 		(void) eof_song_add_text_event(eof_song, (n-1)*num, "intro", 0, (EOF_EVENT_FLAG_RS_SECTION | EOF_EVENT_FLAG_RS_PHRASE), 0);	//Add it as a temporary event at the first beat
 	}
 	
+	// Reset flags for any other paths in code
+	eof_song->n_beats_in_measure = 0;
+	eof_song->auto_accept_add_new_beats = 0;
+
 	eof_show_mouse(NULL);
 	eof_cursor_visible = 1;
 	eof_pen_visible = 1;
