@@ -6,8 +6,10 @@
 #ifdef EOF_BUILD
 #include <allegro.h>
 #include <assert.h>
+#include "agup/agup.h"
 #include "beat.h"
 #include "chart_import.h"	//For FindLongestLineLength_ALLEGRO()
+#include "dialog.h"
 #include "main.h"
 #include "midi.h"
 #include "rs.h"
@@ -3218,6 +3220,7 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 	eof_log("\tParsing note data", 1);
 #endif
 	unsigned long previous_tempo = gp->bpm;
+	bool convert_slide_in_to_grace_note_slides = false;
 
 	for(ctr = 0; ctr < measures; ctr++)
 	{	//For each measure
@@ -3992,6 +3995,9 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 					usedstrings = pack_getc(inf);		//Used strings bitmask
 					definedstrings = 0;	//Reset this bitmask, which will reflect which strings this note actually uses for playable notes, instead of what combination it and all other note effects (like grace notes) are in use
 					usedtie = 0;	//Reset this bitmask
+					bool is_unpitch_slide_in = false;
+					bool unpitch_slide_in_is_from_above = false;
+
 					for(ctr4 = 0, bitmask = 64; ctr4 < 7; ctr4++, bitmask >>= 1)
 					{	//For each of the 7 possible usable strings
 						char thisgemtype = 0;	//Tracks the note type for this string's gem (0 = undefined, 1 = normal, 2 = tie, 3 = dead (muted))
@@ -4432,6 +4438,7 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 											}
 											frets[ctr4]--;				//Set the beginning of this slide one fret lower
 											slide_in_from_warned++;		//Track that such a slide in was encountered
+											is_unpitch_slide_in = true;
 										}
 									}
 									else if(byte & 32)
@@ -4444,6 +4451,8 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 										}
 										frets[ctr4]++;				//Set the beginning of this slide one fret higher
 										slide_in_from_warned++;		//Track that such a slide in was encountered
+										unpitch_slide_in_is_from_above = true;
+										is_unpitch_slide_in = true;
 									}
 									else
 									{
@@ -4456,8 +4465,27 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 								}//Version 5 or newer GP file
 								if(slide_in_from_warned == 1)
 								{	//If this is the first slide in from above/below technique encountered, warn user
-									allegro_message("Imported slide in from above/below notes will be highlighted, as Rocksmith does not directly support this technique.");
+									DIALOG eof_gp_import_slide_in_dialog[] =
+									{
+										/* (proc)            (x)  (y)  (w)  (h)  (fg) (bg) (key) (flags) (d1) (d2) (dp)            (dp2) (dp3) */
+										{ d_agup_window_proc,0,   48,  400, 150, 2,   23,  0,    0,      0,   0,   "Slide-in for Rocksmith",       NULL, NULL },
+										{ d_agup_text_proc,  12,  80,  64,  8,   2,   23,  0,    0,      0,   0,   "Imported slide in from above/below notes will be highlighted,",      NULL, NULL },
+										{ d_agup_text_proc,  12,  100, 64,  8,   2,   23,  0,    0,      0,   0,   "as Rocksmith does not directly support this technique.",      NULL, NULL },
+										{ d_agup_text_proc,  12,  120, 64,  8,   2,   23,  0,    0,      0,   0,   "They can also be converted to grace-note-on-beat slide-ins.",      NULL, NULL },
+										{ d_agup_button_proc,12,  150, 130, 28,  2,   23,  '\r', D_EXIT, 0,   0,   "OK",       NULL, NULL },
+										{ d_agup_button_proc,170, 150, 130, 28,  2,   23,  '\r', D_EXIT, 0,   0,   "Convert",       NULL, NULL },
+										{ NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, NULL, NULL, NULL }
+									};
+									int gui_retval = eof_popup_dialog(eof_gp_import_slide_in_dialog, 0);
+									if (gui_retval == 5) {
+										convert_slide_in_to_grace_note_slides = true;
+									}
 									slide_in_from_warned++;	//Change the value so this prompt isn't immediately triggered on the next loop iteration
+								}
+
+								if (is_unpitch_slide_in && convert_slide_in_to_grace_note_slides) {
+									grace |= bitmask;
+									graceonbeat = 1;
 								}
 							}//Slide
 							if(byte2 & 16)
@@ -4651,7 +4679,17 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 								{	//If convertednum became an unexpectedly large value (ie. integer underflow) or six strings have already been processed
 									break;	//Stop translating fretting and fingering data
 								}
-								np[ctr2]->frets[ctr4] = frets[convertednum];	//Copy the fret number for this string
+
+								char shift_offset_value = 0;
+								if (convert_slide_in_to_grace_note_slides && is_unpitch_slide_in) {
+									if (unpitch_slide_in_is_from_above) {
+										shift_offset_value = -1; // Reset earlier increase
+									}
+									else {
+										shift_offset_value = 1; // Reset earlier reduction
+									}
+								}
+								np[ctr2]->frets[ctr4] = frets[convertednum] + shift_offset_value;	//Copy the fret number for this string
 								np[ctr2]->finger[ctr4] = finger[convertednum];	//Copy the finger number used to fret the string (is nonzero if defined)
 							}
 							if(flags & EOF_PRO_GUITAR_NOTE_FLAG_UNPITCH_SLIDE)
@@ -4660,6 +4698,38 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 								if(unpitchend > gp->track[ctr2]->numfrets)
 								{	//If this unpitched slide requires the fret limit to be increased
 									gp->track[ctr2]->numfrets++;		//Make it so
+								}
+								if (convert_slide_in_to_grace_note_slides) {
+									// Using copied grace note implementation, make the shortest grace note for a slide-in
+									np[ctr2]->flags ^= (EOF_PRO_GUITAR_NOTE_FLAG_UNPITCH_SLIDE | EOF_NOTE_FLAG_HIGHLIGHT); // Disable slide flag for the target note, grace note will slide into this one
+									double grace_duration = 0.015625 * (double)curden / (double)curnum;
+									double grace_position = measure_position - grace_duration;	//Reposition it accordingly
+									beat_position = grace_position * curnum;								//How many whole beats into the current measure the position is
+									partial_beat_position = (grace_position * curnum) - beat_position;	//How far into this beat the grace note begins
+									beat_position += curbeat;	//Add the number of beats into the track the current measure is
+									if(beat_position >= skipbeatsourcectr)
+									{	//If this beat's content is being imported
+										beat_position -= skipbeatsourcectr;	//Offset by the number of beats being skipped
+										beat_length = eof_song->beat[beat_position + 1]->fpos - eof_song->beat[beat_position]->fpos;
+
+										// Set output: grace end position
+										lastgracestartpos = eof_song->beat[beat_position]->fpos + (beat_length * partial_beat_position);
+
+										//Determine the realtime end position of the note that was just parsed
+										beat_position = (grace_position + grace_duration) * curnum;
+										partial_beat_position = (grace_position + grace_duration) * curnum - beat_position;	//How far into this beat the grace note ends
+										beat_position += curbeat;	//Add the number of beats into the track the current measure is
+										beat_position -= skipbeatsourcectr;	//Offset by the number of beats being skipped
+										beat_length = eof_song->beat[beat_position + 1]->fpos - eof_song->beat[beat_position]->fpos;
+
+										// Set output: grace end position
+										lastgraceendpos = eof_song->beat[beat_position]->fpos + (beat_length * partial_beat_position);
+									}
+
+									for (ctr4 = 0; ctr4 < strings[ctr2]; ctr4++) {
+										gracefrets[ctr4] = frets[ctr4];	// Grace note fret number is the altered start from unpitched slide note modification
+									}
+									gracetrans = 1; // Make it a slide grace note
 								}
 							}
 							np[ctr2]->legacymask = 0;
@@ -4816,6 +4886,7 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 								gnp->note |= grace >> (7 - strings[ctr2]);	//Guitar pro's note bitmask reflects string 7 being the LSB (merge the bitmask so that on-beat grace notes combine with the note they affect)
 							}
 							gnp->type = voice;	//Store lead voice notes in difficulty 0, bass voice notes in difficulty 1
+							bool slide_end_stored = false;
 							for(ctr4 = 0, bitmask = 1; ctr4 < strings[ctr2]; ctr4++, bitmask <<= 1)
 							{	//For each of this track's natively supported strings
 								unsigned int convertednum = strings[ctr2] - 1 - ctr4;	//Re-map from GP's string numbering to EOF's (EOF stores 8 fret values per note, it just only uses 6 by default)
@@ -4841,9 +4912,15 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 
 								if(gracetrans == 1)
 								{	//Grace note slides into normal note
+									if (!slide_end_stored) {
+										gnp->slideend = np[ctr2]->frets[ctr4];				//The end of slide position is the fret position of the note the grace note affects
+										slide_end_stored = true;
+									}
 									gnp->flags |= EOF_PRO_GUITAR_NOTE_FLAG_RS_NOTATION;	//Define the grace note's end of slide position
-									gnp->slideend = np[ctr2]->frets[ctr4];				//The end of slide position is the fret position of the note the grace note affects
 									gnp->flags |= EOF_PRO_GUITAR_NOTE_FLAG_LINKNEXT;	//Add linknext status to the grace note so it appears nicely as a slide-in in Rocksmith
+									if (convert_slide_in_to_grace_note_slides) {
+										gnp->flags |= EOF_NOTE_FLAG_HIGHLIGHT;
+									}
 									if(gnp->frets[ctr4] > np[ctr2]->frets[ctr4])
 									{	//If the grace note's fret value is higher than the normal note's
 										gnp->flags |= EOF_PRO_GUITAR_NOTE_FLAG_SLIDE_DOWN;	//The grace note slides down
