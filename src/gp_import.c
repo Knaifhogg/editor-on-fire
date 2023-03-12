@@ -4318,7 +4318,7 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 										if(beat_position >= skipbeatsourcectr)
 										{	//If this beat's content is being imported
 											beat_position -= skipbeatsourcectr;	//Offset by the number of beats being skipped
-											beat_length = eof_song->beat[beat_position + 1]->fpos - eof_song->beat[beat_position]->fpos;
+											beat_length = eof_calc_beat_length(eof_song, beat_position);
 											lastgracestartpos = eof_song->beat[beat_position]->fpos + (beat_length * partial_beat_position);
 
 											//Determine the realtime end position of the note that was just parsed
@@ -4326,7 +4326,7 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 											partial_beat_position = (grace_position + grace_duration) * curnum - beat_position;	//How far into this beat the grace note ends
 											beat_position += curbeat;	//Add the number of beats into the track the current measure is
 											beat_position -= skipbeatsourcectr;	//Offset by the number of beats being skipped
-											beat_length = eof_song->beat[beat_position + 1]->fpos - eof_song->beat[beat_position]->fpos;
+											beat_length = eof_calc_beat_length(eof_song, beat_position);
 											lastgraceendpos = eof_song->beat[beat_position]->fpos + (beat_length * partial_beat_position);
 										}
 									}
@@ -4476,6 +4476,8 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 										{ d_agup_button_proc,170, 150, 130, 28,  2,   23,  '\r', D_EXIT, 0,   0,   "Convert",       NULL, NULL },
 										{ NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, NULL, NULL, NULL }
 									};
+									eof_color_dialog(eof_gp_import_slide_in_dialog, gui_fg_color, gui_bg_color);
+									centre_dialog(eof_gp_import_slide_in_dialog);
 									int gui_retval = eof_popup_dialog(eof_gp_import_slide_in_dialog, 0);
 									if (gui_retval == 5) {
 										convert_slide_in_to_grace_note_slides = true;
@@ -4710,7 +4712,7 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 									if(beat_position >= skipbeatsourcectr)
 									{	//If this beat's content is being imported
 										beat_position -= skipbeatsourcectr;	//Offset by the number of beats being skipped
-										beat_length = eof_song->beat[beat_position + 1]->fpos - eof_song->beat[beat_position]->fpos;
+										beat_length = eof_calc_beat_length(eof_song, beat_position);
 
 										// Set output: grace end position
 										lastgracestartpos = eof_song->beat[beat_position]->fpos + (beat_length * partial_beat_position);
@@ -4720,7 +4722,7 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 										partial_beat_position = (grace_position + grace_duration) * curnum - beat_position;	//How far into this beat the grace note ends
 										beat_position += curbeat;	//Add the number of beats into the track the current measure is
 										beat_position -= skipbeatsourcectr;	//Offset by the number of beats being skipped
-										beat_length = eof_song->beat[beat_position + 1]->fpos - eof_song->beat[beat_position]->fpos;
+										beat_length = eof_calc_beat_length(eof_song, beat_position);
 
 										// Set output: grace end position
 										lastgraceendpos = eof_song->beat[beat_position]->fpos + (beat_length * partial_beat_position);
