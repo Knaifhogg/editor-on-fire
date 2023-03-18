@@ -37,6 +37,8 @@ char *eof_note_names_flat[12] =	{"A","Bb","B","C","Db","D","Eb","E","F","Gb","G"
 char **eof_note_names = eof_note_names_flat;
 #endif
 
+static bool user_alerted_over_bug_in_gp_import = false;
+
 #define mMax(a,b) (a>b) ? (a) : (b)
 
 void pack_ReadWORDLE(PACKFILE *inf, unsigned *data)
@@ -3905,11 +3907,12 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 					beat_position = measure_position * curnum;								//How many whole beats into the current measure the position is
 					partial_beat_position = (measure_position * curnum) - beat_position;	//How far into this beat the note begins
 					beat_position += curbeat;	//Add the number of beats into the track the current measure is
+					unsigned int rounded_beat_pos = round(measure_position * curnum) + curbeat;
 
 					if (tempo_change_value != 0) {
 						previous_tempo = tempo_change_value;
 #ifdef GP_IMPORT_DEBUG
-						(void) snprintf(eof_log_string, sizeof(eof_log_string) - 1, "\t\t\t\tTempo change at beat %lu: %lu bpm",beat_position, tempo_change_value);
+						(void) snprintf(eof_log_string, sizeof(eof_log_string) - 1, "\t\t\t\tTempo change at beat %lu: %lu bpm", rounded_beat_pos, tempo_change_value);
 						eof_log(eof_log_string, 1);
 #endif					
 					}
@@ -3918,8 +3921,10 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 						if(eof_song_append_beats(eof_song, 1))
 							continue;	//If a beat was appended to the project, add more as needed
 					}
-					eof_song->beat[beat_position]->ppqn = (60000000.0 / previous_tempo) + 0.5;		//Convert BPM to ppqn, rounding up					}
-					eof_calculate_range_of_beats_logic(eof_song, curbeat, beat_position); // This is run again later but this ensure fpos is correct if this is the first beat increase after a bpm change
+					if (voice == 0 && ctr2 == 0) {
+						eof_song->beat[rounded_beat_pos]->ppqn = (60000000.0 / previous_tempo) + 0.5;		//Convert BPM to ppqn, rounding up					}
+						eof_calculate_range_of_beats_logic(eof_song, curbeat, beat_position); // This is run again later but this ensure fpos is correct if this is the first beat increase after a bpm change
+					}
 
 					if(beat_position >= skipbeatsourcectr)
 					{	//If this beat's content is being imported
@@ -3977,9 +3982,6 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 							return NULL;
 						}//If there aren't enough beats in the project for some reason, add enough to continue
 
-						for (unsigned long i = curbeat; i <= beat_position; i++) {
-							eof_song->beat[i]->ppqn = (60000000.0 / previous_tempo) + 0.5;		//Convert BPM to ppqn, rounding up					}
-						}
 						eof_calculate_range_of_beats_logic(eof_song, curbeat, beat_position);
 
 						beat_position -= skipbeatsourcectr;	//Offset by the number of beats being skipped
@@ -5170,6 +5172,8 @@ int eof_unwrap_gp_track(struct eof_guitar_pro_struct *gp, unsigned long track, c
 	unsigned char curnum = 4, curden = 4;	//Tracks the time signature of the most recently unwrapped measure
 	EOF_SONG *dsp = NULL;		//A new working song structure needs to be created because unwrapping time signature changes would corrupt the wrapped beat map and note timings
 
+	user_alerted_over_bug_in_gp_import = false;
+
 	eof_log("eof_unwrap_gp_track() entered", 1);
 
 	if(!gp || (track >= gp->numtracks))
@@ -5954,6 +5958,10 @@ char eof_copy_notes_in_beat_range(EOF_SONG *ssp, EOF_PRO_GUITAR_TRACK *source, u
 			if (dest->note[dest->notes-1]->pos < dest->note[dest->notes-2]->pos) {
 				(void) snprintf(eof_log_string, sizeof(eof_log_string) - 1, "\t\t! DEBUG: Note pos being overwritten: NEW: %lu  PREV: %lu", dest->note[dest->notes-1]->pos, dest->note[dest->notes-2]->pos);
 				eof_log(eof_log_string, 1);
+				if (user_alerted_over_bug_in_gp_import == false) {
+					allegro_message("Note pos being overwritten: NEW: %lu  PREV: %lu", dest->note[dest->notes-1]->pos, dest->note[dest->notes-2]->pos);
+					user_alerted_over_bug_in_gp_import = true;
+				}
 			}
 		}
 #endif
@@ -5967,8 +5975,16 @@ char eof_copy_notes_in_beat_range(EOF_SONG *ssp, EOF_PRO_GUITAR_TRACK *source, u
 			iterations++;
 		}
 	}
-	double beat_length = eof_calc_beat_length(dsp, destbeat);
-	double measure_length = numbeats * beat_length;
+
+	// Catch tempo changes within measure and calculate an accurate measure length
+	unsigned int iterations = 0;
+	double measure_length = 0.0;
+	for (unsigned int i = destbeat; i < destbeat + numbeats; i++) {
+		double beat_length = eof_calc_beat_length(dsp, i);
+		measure_length += beat_length;
+		iterations++;
+	}
+
 
 	if (is_repeat_unwrap) {
 		*repeat_padding += measure_length; // Keep track of how much padding has been added from repeats
