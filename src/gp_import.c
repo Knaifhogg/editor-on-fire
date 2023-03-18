@@ -3912,7 +3912,7 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 					if (tempo_change_value != 0) {
 						previous_tempo = tempo_change_value;
 #ifdef GP_IMPORT_DEBUG
-						(void) snprintf(eof_log_string, sizeof(eof_log_string) - 1, "\t\t\t\tTempo change at beat %lu: %lu bpm", rounded_beat_pos, tempo_change_value);
+						(void) snprintf(eof_log_string, sizeof(eof_log_string) - 1, "\t\t\t\tTempo change at beat %u: %lu bpm", rounded_beat_pos, tempo_change_value);
 						eof_log(eof_log_string, 1);
 #endif					
 					}
@@ -3921,9 +3921,13 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 						if(eof_song_append_beats(eof_song, 1))
 							continue;	//If a beat was appended to the project, add more as needed
 					}
+
+					// Set tempo according to first voice, first track, and apply for entire measure in case there are empty beats
 					if (voice == 0 && ctr2 == 0) {
-						eof_song->beat[rounded_beat_pos]->ppqn = (60000000.0 / previous_tempo) + 0.5;		//Convert BPM to ppqn, rounding up					}
-						eof_calculate_range_of_beats_logic(eof_song, curbeat, beat_position); // This is run again later but this ensure fpos is correct if this is the first beat increase after a bpm change
+						for (unsigned int i=rounded_beat_pos; i <= curbeat + curnum; i++) {
+							eof_song->beat[i]->ppqn = (60000000.0 / previous_tempo) + 0.5;		//Convert BPM to ppqn, rounding up					}
+						}
+						eof_calculate_range_of_beats_logic(eof_song, curbeat, rounded_beat_pos); // This is run again later but this ensure fpos is correct if this is the first beat increase after a bpm change
 					}
 
 					if(beat_position >= skipbeatsourcectr)
@@ -5968,7 +5972,7 @@ char eof_copy_notes_in_beat_range(EOF_SONG *ssp, EOF_PRO_GUITAR_TRACK *source, u
 	// Make sure tempo is set even if there were no notes in the measure
 	if (set_tempo) {
 		unsigned int iterations = 0;
-		for (unsigned int i = destbeat; i < destbeat + numbeats; i++) {
+		for (unsigned int i = destbeat; i <= destbeat + numbeats; i++) {
 			dsp->beat[i]->ppqn = ssp->beat[startbeat + iterations]->ppqn;
 			iterations++;
 		}
