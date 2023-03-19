@@ -1033,6 +1033,9 @@ int eof_menu_beat_reset_offset(void)
 			if (eof_song->n_beats_in_measure >= 1) {
 				unsigned long available_space = eof_song->beat[0]->pos;
 				measure_length = (unsigned long)eof_song->n_beats_in_measure * eof_get_beat_length(eof_song, 0);
+				if (measure_length == 0) {
+					return 0;	//Return failure
+				}
 				unsigned int available_measure_space = available_space / measure_length;
 				beats_to_add = available_measure_space * eof_song->n_beats_in_measure;
 			}
