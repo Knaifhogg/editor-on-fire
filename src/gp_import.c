@@ -4877,6 +4877,10 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 								free(strings);
 								return NULL;
 							}
+							if (convert_slide_in_to_grace_note_slides && is_unpitch_slide_in && new_note) {
+								tflags |= EOF_NOTE_TFLAG_GRACE_BEFORE_FIRST_NOTE;
+							}
+
 							gnp->tflags = tflags;	//Track the grace note status for the sake of being able to treat as flam notation for percussion tracks
 							if(strings[ctr2] > 6)
 							{	//If this is a 7 string track
@@ -5880,6 +5884,11 @@ char eof_copy_notes_in_beat_range(EOF_SONG *ssp, EOF_PRO_GUITAR_TRACK *source, u
 		if(!eof_beat_num_valid(ssp, beatnum) || !eof_beat_num_valid(ssp, endbeatnum)) {
 			eof_chart_length = stored_eof_chart_length;
 			continue;	//If the beat positions were not found, skip this note
+		}
+
+		// If this is a repeat measure and we ended on a grace note before a new measure note slide in, overwrite that note
+		if (is_repeat_unwrap && (dest->note[dest->notes-1]->tflags & EOF_NOTE_TFLAG_GRACE_BEFORE_FIRST_NOTE)) {
+			dest->notes--;
 		}
 
 		if(dsp->beats < destbeat + endbeatnum - startbeat + 2)
