@@ -4443,9 +4443,9 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 												unpitchend = frets[ctr4];	//Set the end position of this slide at the authored note
 											}
 											frets[ctr4]--;				//Set the beginning of this slide one fret lower
-											slide_in_from_warned++;		//Track that such a slide in was encountered
-											is_unpitch_slide_in = true;
 										}
+										slide_in_from_warned++;		//Track that such a slide in was encountered
+										is_unpitch_slide_in = true;
 									}
 									else if(byte & 32)
 									{	//This note slides in from above
@@ -4694,9 +4694,16 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 										shift_offset_value = -1; // Reset earlier increase
 									}
 									else {
-										shift_offset_value = 1; // Reset earlier reduction
+										// If it's a zero fret note, don't slide up to it
+										if (frets[convertednum] == 0) {
+											shift_offset_value = 0; // Nullify any offset, it does not apply in this case
+										}
+										else { // If it's a normal slide up note
+											shift_offset_value = 1; // Reset earlier reduction
+										}
 									}
 								}
+
 								np[ctr2]->frets[ctr4] = frets[convertednum] + shift_offset_value;	//Copy the fret number for this string
 								np[ctr2]->finger[ctr4] = finger[convertednum];	//Copy the finger number used to fret the string (is nonzero if defined)
 							}
