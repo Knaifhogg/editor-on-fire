@@ -1659,8 +1659,6 @@ int main(int argc, char *argv[])
 }
 #else
 
-#define GP_IMPORT_DEBUG
-
 struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 {
 	#define EOF_GP_IMPORT_BUFFER_SIZE 256
@@ -5786,7 +5784,9 @@ int eof_unwrap_gp_track(struct eof_guitar_pro_struct *gp, unsigned long track, c
 				{	//If this is the first end of repeat that was reached, the scope of the alternate ending is over
 					currentmeasure++;	//Go beyond the end of repeat to the next measure
 					moved_past_measure_before_repeat = 1;
+#ifdef GP_IMPORT_DEBUG
 					debug_iterator--;
+#endif
 					break;
 				}
 				if(gp->measure[currentmeasure].alt_endings && (curr_alt_ending != gp->measure[currentmeasure].alt_endings))
