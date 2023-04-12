@@ -4712,7 +4712,7 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 								{	//If this unpitched slide requires the fret limit to be increased
 									gp->track[ctr2]->numfrets++;		//Make it so
 								}
-								if (convert_slide_in_to_grace_note_slides) {
+								if (convert_slide_in_to_grace_note_slides && is_unpitch_slide_in) {
 									// Using copied grace note implementation, make the shortest grace note for a slide-in
 									np[ctr2]->flags ^= (EOF_PRO_GUITAR_NOTE_FLAG_UNPITCH_SLIDE | EOF_NOTE_FLAG_HIGHLIGHT); // Disable slide flag for the target note, grace note will slide into this one
 									double grace_duration = 0.015625 * (double)curden / (double)curnum;
@@ -4935,7 +4935,7 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 									}
 									gnp->flags |= EOF_PRO_GUITAR_NOTE_FLAG_RS_NOTATION;	//Define the grace note's end of slide position
 									gnp->flags |= EOF_PRO_GUITAR_NOTE_FLAG_LINKNEXT;	//Add linknext status to the grace note so it appears nicely as a slide-in in Rocksmith
-									if (convert_slide_in_to_grace_note_slides) {
+									if (convert_slide_in_to_grace_note_slides && is_unpitch_slide_in) {
 										gnp->flags |= EOF_NOTE_FLAG_HIGHLIGHT;
 									}
 									if(gnp->frets[ctr4] > np[ctr2]->frets[ctr4])
