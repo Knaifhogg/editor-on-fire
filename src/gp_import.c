@@ -5533,7 +5533,7 @@ int eof_unwrap_gp_track(struct eof_guitar_pro_struct *gp, unsigned long track, c
 						memcpy(&tp->tonechange[tp->tonechanges], &gp->track[track]->tonechange[tone], sizeof(EOF_PHRASE_SECTION));	//Copy the text event
 						tp->tonechange[tp->tonechanges].start_pos = unwrap_beat;
 #ifdef GP_IMPORT_DEBUG
-						(void) snprintf(eof_log_string, sizeof(eof_log_string) - 1, "Tone change %lu: %s (beat: %lu) unwrapped -> beat: %lu", tone, gp->track[track]->tonechange[tone].name, gp->track[track]->tonechange[tone].start_pos, unwrap_beat);
+						(void) snprintf(eof_log_string, sizeof(eof_log_string) - 1, "Tone change %lu: %s (beat: %lu) unwrapped -> beat: %lu pos: %lu", tone, gp->track[track]->tonechange[tone].name, gp->track[track]->tonechange[tone].start_pos, unwrap_beat, eof_song->beat[unwrap_beat]->pos);
 						eof_log(eof_log_string, 1);
 #endif
 						tp->tonechanges++;
