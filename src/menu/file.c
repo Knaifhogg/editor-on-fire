@@ -5255,6 +5255,9 @@ int eof_gp_import_gp_multi_track_for_rs(int importvoice)
 
 				unsigned long defaulttone = 0;
 				unsigned long beat_position = 0;
+				unsigned long beat = 0;
+
+				eof_calculate_beats(eof_song);	//Rebuild the beat timings so that beats are correct for setting tone position
 
 				// Copy tone changes
 				for(ctr = 0; ctr < eof_parsed_gp_file->track[selected]->tonechanges; ctr++) {
@@ -5267,7 +5270,8 @@ int eof_gp_import_gp_multi_track_for_rs(int importvoice)
 						defaulttone = 0;
 					}
 					(void) ustrcpy(eof_etext, eof_parsed_gp_file->track[selected]->tonechange[ctr].name);
-					beat_position = eof_song->beat[eof_parsed_gp_file->track[selected]->tonechange[ctr].start_pos]->pos;
+					beat = eof_parsed_gp_file->track[selected]->tonechange[ctr].start_pos;
+					beat_position = eof_song->beat[beat]->pos;
 					(void) eof_track_add_section(eof_song, eof_selected_track, EOF_RS_TONE_CHANGE, 0, beat_position, defaulttone, 0, eof_etext);
 				}
 
@@ -5476,6 +5480,9 @@ int eof_gp_import_guitar_track(int importvoice)
 
 		unsigned long defaulttone = 0;
 		unsigned long beat_position = 0;
+		unsigned long beat = 0;
+
+		eof_calculate_beats(eof_song);	//Rebuild the beat timings so that beats are correct for setting tone position
 
 		// Copy tone changes
 		for(ctr = 0; ctr < eof_parsed_gp_file->track[selected]->tonechanges; ctr++) {
@@ -5488,7 +5495,8 @@ int eof_gp_import_guitar_track(int importvoice)
 				 defaulttone = 0;
 			}
 			(void) ustrcpy(eof_etext, eof_parsed_gp_file->track[selected]->tonechange[ctr].name);
-			beat_position = eof_song->beat[eof_parsed_gp_file->track[selected]->tonechange[ctr].start_pos]->pos;
+			beat = eof_parsed_gp_file->track[selected]->tonechange[ctr].start_pos;
+			beat_position = eof_song->beat[beat]->pos;
 			(void) eof_track_add_section(eof_song, eof_selected_track, EOF_RS_TONE_CHANGE, 0, beat_position, defaulttone, 0, eof_etext);
 		}
 
