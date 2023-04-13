@@ -4065,6 +4065,9 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 								{	//For each previous note created for this track
 									if(gp->track[ctr2]->note[ctr5 - 1]->note & (1 << convertednum))
 									{	//If the note has a gem on this string
+										if ((gp->track[ctr2]->note[ctr5 - 1]->tflags & EOF_NOTE_TFLAG_GRACE)) {
+											continue; // Skip if it was a grace note (since it is not sorted yet and grace notes are indexed higher than the note they preceed)
+										}
 										frets[ctr4] = gp->track[ctr2]->note[ctr5 - 1]->frets[convertednum];	//Copy the fret number for this string
 										break;
 									}
@@ -4885,6 +4888,7 @@ struct eof_guitar_pro_struct *eof_load_gp(const char * fn, char *undo_made)
 							if (convert_slide_in_to_grace_note_slides && is_unpitch_slide_in && new_note) {
 								tflags |= EOF_NOTE_TFLAG_GRACE_BEFORE_FIRST_NOTE;
 							}
+							tflags |= EOF_NOTE_TFLAG_GRACE;
 
 							gnp->tflags = tflags;	//Track the grace note status for the sake of being able to treat as flam notation for percussion tracks
 							if(strings[ctr2] > 6)
