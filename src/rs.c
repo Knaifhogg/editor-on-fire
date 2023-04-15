@@ -67,9 +67,9 @@ EOF_RS_PREDEFINED_SECTION eof_rs_predefined_events[EOF_NUM_RS_PREDEFINED_EVENTS]
 {
 	{"B0", "High pitch tick (B0)"},
 	{"B1", "Low pitch tick (B1)"},
-	{"E0", "Crowd waving hands (E0)"},
-	{"E1", "Crowd happy (E1)"},
-	{"E2", "Crowd very happy (E2)"},
+	{"e0", "Crowd speed slow (e0)"},
+	{"e1", "Crowd speed default (e1)"},
+	{"e2", "Crowd speed fast (e2)"},
 	{"E3", "Crowd applause (E3)"},
 	{"D3", "Crowd critique applause (D3)"},
 	{"E13", "End crowd applause (E13)"}
@@ -1722,7 +1722,7 @@ int eof_export_rocksmith_2_track(EOF_SONG * sp, char * fn, unsigned long track, 
 
 	//Write the beginning of the XML file
 	(void) pack_fputs("<?xml version='1.0' encoding='UTF-8'?>\n", fp);
-	(void) pack_fputs("<song version=\"7\">\n", fp);
+	(void) pack_fputs("<song version=\"8\">\n", fp);
 	(void) pack_fputs("<!-- " EOF_VERSION_STRING " -->\n", fp);	//Write EOF's version in an XML comment
 	expand_xml_text(buffer2, sizeof(buffer2) - 1, sp->tags->title, 64, 0, 0, 0, NULL);	//Expand XML special characters into escaped sequences if necessary, and check against the maximum supported length of this field
 	(void) snprintf(buffer, sizeof(buffer) - 1, "  <title>%s</title>\n", buffer2);
@@ -1731,7 +1731,8 @@ int eof_export_rocksmith_2_track(EOF_SONG * sp, char * fn, unsigned long track, 
 	(void) snprintf(buffer, sizeof(buffer) - 1, "  <arrangement>%s</arrangement>\n", buffer2);
 	(void) pack_fputs(buffer, fp);
 	(void) pack_fputs("  <part>1</part>\n", fp);
-	(void) pack_fputs("  <offset>0.000</offset>\n", fp);
+	(void) snprintf(buffer, sizeof(buffer) - 1, "  <offset>%.3f</offset>\n", -(sp->beat[0]->fpos / 1000.0));
+	(void) pack_fputs(buffer, fp);
 	(void) pack_fputs("  <centOffset>0</centOffset>\n", fp);
 	eof_truncate_chart(sp);	//Update the chart length
 	(void) snprintf(buffer, sizeof(buffer) - 1, "  <songLength>%.3f</songLength>\n", (double)(xml_end - 1) / 1000.0);	//Make sure the song length is not longer than the actual audio, or the chart won't reach an end in-game
@@ -2877,18 +2878,23 @@ int eof_export_rocksmith_2_track(EOF_SONG * sp, char * fn, unsigned long track, 
 				{	//Chord is explicitly specified to be high density
 					highdensity = 1;	//This status has the highest precedence for setting the density
 				}
+
 				chordtagend = normalend;	//By default, chordnote tags are to be written
-				if(eflags & EOF_PRO_GUITAR_NOTE_EFLAG_CHORDIFY)
-				{	//If this chord has chordify status
-					if(tflags & EOF_NOTE_TFLAG_LN)
-					{	//Chordify will override the chord tag's linknext status to enabled if temporary single notes were created for it
-						tech.linknext = 1;
-					}
-					if(!eof_pro_guitar_note_has_open_note(tp, ctr3))
-					{	//If this chord does not have any open notes, no chordnote tags are needed
-						chordtagend = chordifiedend;	//Write the chord tag as ending in a single line with no sub tags
-					}
+				if (highdensity == 1)
+				{
+					chordtagend = chordifiedend;
 				}
+				// if(eflags & EOF_PRO_GUITAR_NOTE_EFLAG_CHORDIFY)
+				// {	//If this chord has chordify status
+				// 	if(tflags & EOF_NOTE_TFLAG_LN)
+				// 	{	//Chordify will override the chord tag's linknext status to enabled if temporary single notes were created for it
+				// 		tech.linknext = 1;
+				// 	}
+				// 	if(!eof_pro_guitar_note_has_open_note(tp, ctr3))
+				// 	{	//If this chord does not have any open notes, no chordnote tags are needed
+				// 		chordtagend = chordifiedend;	//Write the chord tag as ending in a single line with no sub tags
+				// 	}
+				// }
 				if(tflags & EOF_NOTE_TFLAG_HD)
 				{	//If this chord has chordify status and one of its individual notes has pre-bend status
 					highdensity = 1;	//Export the chord as high density to ensure proper display of the bend notes
@@ -2897,7 +2903,7 @@ int eof_export_rocksmith_2_track(EOF_SONG * sp, char * fn, unsigned long track, 
 				eof_conditionally_append_xml_long(buffer, sizeof(buffer), "linkNext", tech.linknext, 0);
 				eof_conditionally_append_xml_long(buffer, sizeof(buffer), "accent", tech.accent, 0);
 				eof_conditionally_append_xml_long(buffer, sizeof(buffer), "fretHandMute", tech.stringmute, 0);
-				eof_conditionally_append_xml_long(buffer, sizeof(buffer), "highDensity", highdensity, 0);
+				eof_conditionally_append_xml_long(buffer, sizeof(buffer), "highDensity", 0, 0);
 				eof_conditionally_append_xml_long(buffer, sizeof(buffer), "ignore", tech.ignore, 0);
 				eof_conditionally_append_xml_long(buffer, sizeof(buffer), "palmMute", tech.palmmute, 0);
 				eof_conditionally_append_xml_long(buffer, sizeof(buffer), "hopo", tech.hopo, 0);
@@ -2920,10 +2926,6 @@ int eof_export_rocksmith_2_track(EOF_SONG * sp, char * fn, unsigned long track, 
 						{	//If this string is used in this note and it is not ghosted
 							long originallength = tp->note[ctr3]->length;	//Back up the original length of this note because it may be altered before export
 
-							if((eflags & EOF_PRO_GUITAR_NOTE_EFLAG_CHORDIFY) && (tp->note[ctr3]->frets[stringnum] & 0x7F))
-							{	//If this is a chordified chord and the gem on this string is not an open note
-								continue;	//Do not write a chordnote tag for it
-							}
 							(void) eof_rs_combine_linknext_logic(sp, track, ctr3, stringnum);
 
 							assert(chordlist != NULL);	//Unneeded check to resolve a false positive in Splint
@@ -3156,15 +3158,8 @@ int eof_export_rocksmith_2_track(EOF_SONG * sp, char * fn, unsigned long track, 
 						}
 						else
 						{	//The next note (if any) is not a repeat of this note and is not completely string muted
-							if(eof_get_note_tflags(sp, track, nextnote) & EOF_NOTE_TFLAG_SPLIT_CHORD)
-							{	//If this note was created from a chord due to linknext or split statuses, it is to be ignored so the handshape can encompass it where appropriate
-								ctr3 = nextnote;	//Iterate to the next note
-							}
-							else
-							{
-								handshapeend = eof_get_note_pos(sp, track, ctr3) + eof_get_note_length(sp, track, ctr3);	//End the hand shape at the end of this chord
-								break;	//Break from while loop
-							}
+							handshapeend = eof_get_note_pos(sp, track, ctr3) + eof_get_note_length(sp, track, ctr3);	//End the hand shape at the end of this chord
+							break;	//Break from while loop
 						}
 					}
 				}
@@ -4750,6 +4745,24 @@ int eof_time_range_is_populated(EOF_SONG *sp, unsigned long track, unsigned long
 	return retval;	//Return not populated
 }
 
+int eof_same_excluding_ghosts(EOF_PRO_GUITAR_TRACK *tp, unsigned long track, unsigned long note1, unsigned long note2)
+{
+	unsigned long ctr, bitmask;
+
+	for(ctr = 0, bitmask = 1; ctr < 6; ctr ++, bitmask <<= 1)
+	{	//For each of the 6 supported strings
+		if(!(tp->note[note1]->ghost & bitmask) && !(tp->note[note2]->ghost & bitmask))
+		{	//If the string is not ghosted
+			if((tp->note[note1]->frets[ctr] & 0x7F) != (tp->note[note2]->frets[ctr] & 0x7F))
+			{	//If this string's fret value (when masking out the mute status) isn't the same for both notes
+				return 1;	//Return not equal
+			}
+		}
+	}
+
+	return 0;	//Return equal
+}
+
 int eof_note_has_high_chord_density(EOF_SONG *sp, unsigned long track, unsigned long note, char target)
 {
 	long prev;
@@ -4797,6 +4810,28 @@ int eof_note_has_high_chord_density(EOF_SONG *sp, unsigned long track, unsigned 
 	{	//If the chord is in a handshape
 		if(handshapestatus == 1)
 			return 0;	//Chord is the first note in any handshape
+		else
+		{	// Check the previous chord in the handshape (ignoring any single notes in between)
+			long indexWithinHandShape = handshapestatus;
+			long prevInHandShape = prev;
+			while(indexWithinHandShape >= 1)
+			{
+				unsigned long lanecount = eof_note_count_rs_lanes(sp, track, prevInHandShape, 2);
+				if(lanecount > 1)
+				{
+					if(!eof_same_excluding_ghosts(tp, track, note, prevInHandShape))
+					{	// The previous chord matches this one
+						return 1;
+					}
+					else
+					{	// The previous chord is a different one
+						return 0;
+					}
+				}
+				indexWithinHandShape--;
+				prevInHandShape--;
+			}
+		}
 	}
 
 	if(eof_note_compare(sp, track, note, track, prev, 0))
