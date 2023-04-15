@@ -2438,11 +2438,11 @@ void eof_read_global_keys(void)
 			eof_use_key();
 		}
 
-	/* feedback import (F7) */
+	/* rocksmith import (F7) */
 		else if(eof_key_code == KEY_F7)
-		{	//Launch Feedback chart import
+		{	//Launch Rocksmith import
 			clear_keybuf();
-			(void) eof_menu_file_feedback_import();
+			(void) eof_menu_file_rs_import();
 			eof_use_key();
 		}
 
