@@ -47,6 +47,9 @@
 	{
 		unsigned long numtracks;			//The number of tracks loaded from the guitar pro file
 		unsigned fileversion;				//The version of the GP format being imported
+		char artist[256];
+		char title[256];
+		char album[256];
 		char **names;						//An array of strings, representing the native name of each loaded track
 		char *instrument_types;				//An array of values indicating the instrument type of each loaded track (1 = guitar, 2 = bass, 3 = drum, 0 = other)
 		EOF_PRO_GUITAR_TRACK **track;		//An array of pro guitar track pointers, representing the imported note data of each loaded track
@@ -58,6 +61,7 @@
 		char coda_activated;				//Indicates that an "...al coda" symbol was reached, meaning that when "da coda" is reached, the GP track unwrapping will redirect to that symbol
 		char double_coda_activated;			//Indicates that an "...al double coda" symbol was reached, meaning that when "da double coda" is reached, the GP track unwrapping will redirect to that symbol
 		char fine_activated;				//Indicates that an "...al fine" symbol was reached, meaning that when "fine" is reached, the GP track unwrapping will end
+		unsigned int bpm;
 	};
 
 	struct eof_gpa_sync_point
@@ -88,7 +92,7 @@
 		//If import_ts is nonzero, the active project's time signatures are updated to reflect those of the unwrapped transcription
 		//If beats_only is nonzero, no notes or text events are unwrapped, but beats and time signatures are (ie. to unwrap the measures before applying beat timings in GPA import)
 		//Returns nonzero on error
-	char eof_copy_notes_in_beat_range(EOF_SONG *ssp, EOF_PRO_GUITAR_TRACK *source, unsigned long startbeat, unsigned long numbeats, EOF_SONG *dsp, EOF_PRO_GUITAR_TRACK *dest, unsigned long destbeat);
+	char eof_copy_notes_in_beat_range(EOF_SONG *ssp, EOF_PRO_GUITAR_TRACK *source, unsigned long startbeat, unsigned long numbeats, EOF_SONG *dsp, EOF_PRO_GUITAR_TRACK *dest, unsigned long destbeat, unsigned long is_repeat_unwrap, double *repeat_padding, double *repeat_start_fpos, double total_repeat_padding, char set_tempo);
 		//Copies the notes within the specified range of beats in the source track to the same number of beats starting at the specified beat in the destination track
 		//Since the application of time signatures can alter the beat map (and thus beat timing), the beat array from *sp is used as the source beat map
 		// and that from *dp is used as the destination beat map

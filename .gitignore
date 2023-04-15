@@ -41,5 +41,6 @@ src/makefile.legacy_config
 bin/eof
 bin/eof.exe
 bin/eof.cfg
-bin/eof_log.txt
+bin/eof_log*
 bin/FFTW.wisdom
+bin/temp

@@ -27,6 +27,9 @@ endif
 top:
 	$(MAKE) -C src -f makefile.$(SYSTEM)
 
+debug:
+	$(MAKE) -C src -f makefile.$(SYSTEM) DEBUG=1
+
 clean:
 	$(MAKE) -C src -f makefile.$(SYSTEM) clean
 

@@ -1,7 +1,15 @@
+DEBUG ?= 0
+
 CC = gcc
-CFLAGS = -Wall -O2 -fomit-frame-pointer -ffast-math -funroll-loops -mwindows -static -static-libgcc -static-libstdc++ -flto -Ialogg/include -DEOF_BUILD -DALLEGRO_STATICLINK
+CFLAGS = -Wall -fomit-frame-pointer -ffast-math -funroll-loops -mwindows -static -static-libgcc -static-libstdc++ -flto -Ialogg/include -DEOF_BUILD -DALLEGRO_STATICLINK
 CXXFLAGS = $(CFLAGS)
 LIBS = -lalleg -logg -lvorbisfile -lvorbis -lm -lfftw3 -lrubberband -lstdc++ -lsamplerate -lddraw -ldsound -ldinput -ldxguid -lole32 -lwinmm
+
+ifeq ($(DEBUG), 1)
+    CFLAGS += -O0 -fkeep-inline-functions -g -DGP_IMPORT_DEBUG
+else
+    CFLAGS += -O2
+endif
 
 include makefile.common
 

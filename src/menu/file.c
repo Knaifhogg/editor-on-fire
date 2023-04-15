@@ -1,6 +1,7 @@
 #include <allegro.h>
 #include <ctype.h>
 #include <time.h>
+#include <stdbool.h>
 #include "../agup/agup.h"
 #include "../main.h"
 #include "../foflc/Lyric_storage.h"
@@ -35,7 +36,6 @@
 #include "note.h"	//For eof_correct_chord_fingerings()
 #include "song.h"
 #include "track.h"	//For tone name functions
-
 #ifdef USEMEMWATCH
 #include "../memwatch.h"
 #endif
@@ -87,6 +87,7 @@ MENU eof_file_import_menu[] =
 	{"Guitar &Hero", eof_menu_file_gh_import, NULL, 0, NULL},
 	{"&Lyric\tF8", eof_menu_file_lyrics_import, NULL, 0, NULL},
 	{"&Guitar Pro\tF12", eof_menu_file_gp_import, NULL, 0, NULL},
+	{"Guitar Pro (multi-track)", eof_menu_file_gp_multi_import, NULL, 0, NULL},
 	{"&Rocksmith\tF7", eof_menu_file_rs_import, NULL, 0, NULL},
 	{"&Bandfuse", eof_menu_file_bf_import, NULL, 0, NULL},
 	{"&Queen Bee", eof_menu_file_array_txt_import, NULL, 0, NULL},
@@ -5061,6 +5062,290 @@ int eof_gp_import_drum_track(int importvoice, int function)
 	return D_CLOSE;
 }
 
+char * eof_gp_rs_tracks_list(int index, int * size)
+{
+	static char *track_indeces_str[5] = {"EOF_TRACK_PRO_GUITAR", "EOF_TRACK_PRO_GUITAR_22", "EOF_TRACK_PRO_GUITAR_B", "EOF_TRACK_PRO_BASS", "EOF_TRACK_PRO_BASS_22"};
+
+	if(index < 0)
+	{	//Signal to return the list count
+		if(size)
+		{
+			*size = 5;
+		}
+	}
+	else
+	{	//Return the specified list item
+		if(index < 5)
+		{	//eof_parsed_gp_file and the referenced track index are valid
+			return track_indeces_str[index];
+		}
+	}
+	return NULL;
+}
+
+int eof_gp_import_gp_multi_track_for_rs(int importvoice)
+{
+	unsigned long ctr, ctr2, selected;
+	char overlaps, tuning_prompted = 0, is_bass = 0;
+	char still_populated = 0;	//Will be set to nonzero if the track still contains notes after the track/difficulty is cleared before importing the GP track
+	EOF_PHRASE_SECTION *ptr, *ptr2;
+
+	// For tracks in gp file, prepare for RS tracks
+	unsigned int track_indeces[] = {EOF_TRACK_PRO_GUITAR, EOF_TRACK_PRO_GUITAR_22, EOF_TRACK_PRO_GUITAR_B, EOF_TRACK_PRO_BASS, EOF_TRACK_PRO_BASS_22};
+	if(eof_song) {	//Only continue if a pro guitar/bass track is active
+		unsigned int number_of_tracks = eof_parsed_gp_file->numtracks;
+		
+		char (*track_names)[EOF_NAME_LENGTH+1] = malloc(number_of_tracks * sizeof(*track_names));
+		// Pre-parse to let user select pairing
+		for (unsigned int i = 0; i < number_of_tracks; i++) {
+			strcpy(track_names[i],eof_parsed_gp_file->names[i]);
+		}
+
+		for (unsigned int i = 0; i < number_of_tracks; i++) {
+
+			(void) snprintf(eof_etext, sizeof(eof_etext) - 1, "Import GP track into which pro track?");
+			(void) snprintf(eof_etext2, sizeof(eof_etext2) - 1, "Guitar Pro track: %s (%u/%u)", track_names[i], i+1, number_of_tracks);
+			DIALOG eof_gp_import_track_dialog[] =
+			{
+				/* (proc)            (x)  (y)  (w)  (h)  (fg) (bg) (key) (flags) (d1) (d2) (dp)            (dp2) (dp3) */
+				{ d_agup_window_proc,0,   48,  500, 232, 2,   23,  0,    0,      0,   0,   eof_etext,       NULL, NULL },
+				{ d_agup_text_proc,  12,  84,  64,  8,   2,   23,  0,    0,      0,   0,   eof_etext2,      NULL, NULL },
+				{ d_agup_list_proc,  12,  100, 400, 108, 2,   23,  0,    0,      0,   0,   (void *)eof_gp_rs_tracks_list, NULL, NULL },
+				{ d_agup_button_proc,12,  230, 130, 28,  2,   23,  '\r', D_EXIT, 0,   0,   "OK",       NULL, NULL },
+				{ d_agup_button_proc,170, 230, 130, 28,  2,   23,  '\r', D_EXIT, 0,   0,   "Skip",       NULL, NULL },
+				{ d_agup_button_proc,328, 230, 130, 28,  2,   23,  '\r', D_EXIT, 0,   0,   "Cancel",       NULL, NULL },
+				{ NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, NULL, NULL, NULL }
+			};
+			eof_color_dialog(eof_gp_import_track_dialog, gui_fg_color, gui_bg_color);
+			centre_dialog(eof_gp_import_track_dialog);
+			int gui_retval = eof_popup_dialog(eof_gp_import_track_dialog, 0);	//Launch the dialog to allow the user to import a track
+			if (gui_retval == 4) {
+				continue;
+			}
+			else if (gui_retval == 5) {
+				break;
+			}
+			else if (gui_retval == 3) {
+				selected = eof_gp_import_track_dialog[2].d1; // Select chosen EOF track
+			}
+			else {
+				break;
+			}
+
+			eof_selected_track = track_indeces[selected];
+			(void) eof_menu_track_selected_track_number(eof_selected_track, 1);	//Change to the user selected track
+			overlaps = 0;
+			tuning_prompted = 0;
+			is_bass = 0;
+			still_populated = 0;	//Will be set to nonzero if 
+
+			if (eof_song->track[eof_selected_track]->track_format == EOF_PRO_GUITAR_TRACK_FORMAT) {
+
+				unsigned long tracknum = eof_song->track[eof_selected_track]->tracknum;
+
+				selected = i; // Select current GP track
+				(void) snprintf(eof_log_string, sizeof(eof_log_string) - 1, "\tImporting track #%lu (%s) from GP file", selected + 1, eof_parsed_gp_file->names[selected]);
+				eof_log(eof_log_string, 1);
+
+				eof_menu_track_set_tech_view_state(eof_song, eof_selected_track, 0);	//Disable tech view if applicable
+
+				//Prompt about overwriting the active track or track difficulty as appropriate
+				eof_clear_input();
+				if(eof_gp_import_replaces_track) {	//If the user preference to replace the entire active track with the imported track is enabled
+					if(eof_get_track_size_all(eof_song, eof_selected_track) && alert("This track already has notes", "Importing this GP track will overwrite this track's contents", "Continue?", "&Yes", "&No", 'y', 'n') != 1) {	//If the active track is already populated (with normal or tech notes) and the user doesn't opt to overwrite it
+						eof_log("\t\tImport canceled", 1);
+						return 0;
+					}
+				}
+				else { // If the imported track will only replace the active track difficulty
+					if (eof_track_diff_populated_status[eof_note_type] && alert("This track difficulty already has notes", "Importing this GP track will overwrite this difficulty's contents", "Continue?", "&Yes", "&No", 'y', 'n') != 1) { // If the active track difficulty is already populated and the user doesn't opt to overwrite it
+						eof_log("\t\tImport canceled", 1);
+						return 0;
+					}
+				}
+				if(!gp_import_undo_made)
+				{	//If an undo state wasn't already made
+					eof_prepare_undo(EOF_UNDO_TYPE_NONE);	//Make one now
+					gp_import_undo_made = 1;
+				}
+				if(eof_gp_import_replaces_track)
+				{	//If the user preference to replace the entire active track with the imported track is enabled
+					eof_erase_track(eof_song, eof_selected_track, 1);	//Erase the active track
+				}
+				else
+				{
+					eof_erase_track_difficulty(eof_song, eof_selected_track, eof_note_type);	//Otherwise erase the active track difficulty
+				}
+				if(eof_get_track_size_all(eof_song, eof_selected_track))
+				{	//If the track still has notes in it after the removal of the track or track difficulty's notes
+						still_populated = 1;
+				}
+
+				//Copy the content from the selected GP track into the active track
+				//Copy notes
+				eof_pro_guitar_track_sort_notes(eof_parsed_gp_file->track[selected]);
+				for(ctr = 0; ctr < eof_parsed_gp_file->track[selected]->notes; ctr++)
+				{	//For each note in the GP track
+					if(importvoice & (eof_parsed_gp_file->track[selected]->note[ctr]->type + 1))
+					{	//If this voice is to be imported
+						EOF_PRO_GUITAR_NOTE *np = eof_pro_guitar_track_add_note(eof_song->pro_guitar_track[tracknum]);	//Allocate a new note
+						if(!np)
+						{	//If the memory couldn't be allocated
+							allegro_message("Error allocating memory.  Aborting");
+							eof_log("\t\tImport failed", 1);
+							return 0;
+						}
+						memcpy(np, eof_parsed_gp_file->track[selected]->note[ctr], sizeof(EOF_PRO_GUITAR_NOTE));	//Clone the note from the GP track
+						np->type = eof_note_type;	//Update the note difficulty
+					}
+				}
+				//Copy tech notes
+				for(ctr = 0; ctr < eof_parsed_gp_file->track[selected]->technotes; ctr++)
+				{	//For each tech note in the GP track
+					if(importvoice & (eof_parsed_gp_file->track[selected]->technote[ctr]->type + 1))
+					{	//If this voice is to be imported
+						EOF_PRO_GUITAR_NOTE *np = eof_pro_guitar_track_add_tech_note(eof_song->pro_guitar_track[tracknum]);	//Allocate a new note
+						if(!np)
+						{	//If the memory couldn't be allocated
+							allegro_message("Error allocating memory.  Aborting");
+							eof_log("\t\tImport failed", 1);
+							return 0;
+						}
+						memcpy(np, eof_parsed_gp_file->track[selected]->technote[ctr], sizeof(EOF_PRO_GUITAR_NOTE));	//Clone the tech note from the GP track
+						np->type = eof_note_type;	//Update the note difficulty
+					}
+				}
+				//Copy trill phrases
+				for(ctr = 0, overlaps = 0; ctr < eof_parsed_gp_file->track[selected]->trills; ctr++)
+				{	//For each trill phrase in the GP track
+					ptr = &eof_parsed_gp_file->track[selected]->trill[ctr];
+					for(ctr2 = 0; ctr2 < eof_get_num_trills(eof_song, eof_selected_track); ctr2++)
+					{	//For each trill section already in the active track
+						ptr2 = eof_get_trill(eof_song, eof_selected_track, ctr2);
+						if((ptr->end_pos >= ptr2->start_pos) && (ptr->start_pos <= ptr2->end_pos))
+						{	//If the trill phrase in the GP track overlaps with any trill phrase already in the active track
+							overlaps = 1;	//Make a note
+							break;
+						}
+					}
+					if(!overlaps)
+					{	//If this trill phrase doesn't overlap with any existing trill phrases in the active track
+						(void) eof_track_add_section(eof_song, eof_selected_track, EOF_TRILL_SECTION, 0, ptr->start_pos, ptr->end_pos, 0, NULL);	//Copy it to the active track
+					}
+				}
+				//Copy tremolo phrases
+				for(ctr = 0; ctr < eof_parsed_gp_file->track[selected]->tremolos; ctr++)
+				{	//For each tremolo phrase in the GP track
+					overlaps = 0;	//Reset this status
+					ptr = &eof_parsed_gp_file->track[selected]->tremolo[ctr];
+					for(ctr2 = 0; ctr2 < eof_get_num_tremolos(eof_song, eof_selected_track); ctr2++)
+					{	//For each tremolo section already in the active track
+						ptr2 = eof_get_tremolo(eof_song, eof_selected_track, ctr2);
+						if((ptr->end_pos >= ptr2->start_pos) && (ptr->start_pos <= ptr2->end_pos) && (ptr->difficulty == eof_note_type))
+						{	//If the tremolo phrase in the GP track overlaps with any tremolo phrase already in the active track difficulty
+							overlaps = 1;	//Make a note
+							break;
+						}
+					}
+					if(!overlaps)
+					{	//If this tremolo phrase doesn't overlap with any existing tremolo phrases in the active track
+						(void) eof_track_add_section(eof_song, eof_selected_track, EOF_TREMOLO_SECTION, eof_note_type, ptr->start_pos, ptr->end_pos, 0, NULL);	//Copy it to the active track difficulty
+					}
+				}
+
+				unsigned long defaulttone = 0;
+				unsigned long beat_position = 0;
+
+				// Copy tone changes
+				for(ctr = 0; ctr < eof_parsed_gp_file->track[selected]->tonechanges; ctr++) {
+					if((eof_parsed_gp_file->track[selected]->defaulttone[0] != '\0') &&
+						(!strcmp(eof_parsed_gp_file->track[selected]->defaulttone, eof_parsed_gp_file->track[selected]->tonechange[ctr].name)))
+					{	//If the tone being changed to is the currently defined default tone
+						defaulttone = 1;
+					}
+					else {
+						defaulttone = 0;
+					}
+					(void) ustrcpy(eof_etext, eof_parsed_gp_file->track[selected]->tonechange[ctr].name);
+					beat_position = eof_song->beat[eof_parsed_gp_file->track[selected]->tonechange[ctr].start_pos]->pos;
+					(void) eof_track_add_section(eof_song, eof_selected_track, EOF_RS_TONE_CHANGE, 0, beat_position, defaulttone, 0, eof_etext);
+				}
+
+				//Copy the imported track's tuning, string count, fret count and capo position into the active track
+				if(eof_detect_string_gem_conflicts(eof_song->pro_guitar_track[tracknum], eof_parsed_gp_file->track[selected]->numstrings))
+				{	//If the track being imported has a different string count that would cause notes to be removed from the track
+					if(alert("Warning:  The imported track's string count is lower than the active track.", "Applying the string count will alter/delete existing notes in the track.", "Apply the imported track's string count?", "&Yes", "&No", 'y', 'n') == 1)
+					{	//If user opts to change the string count even though notes will be altered/deleted
+						eof_song->pro_guitar_track[tracknum]->numstrings = eof_parsed_gp_file->track[selected]->numstrings;
+					}
+				}
+				else
+				{	//If the imported track's string count doesn't conflict with any notes that were already in the active track
+					eof_song->pro_guitar_track[tracknum]->numstrings = eof_parsed_gp_file->track[selected]->numstrings;
+				}
+
+				if(eof_get_highest_fret(eof_song, eof_selected_track, 0) > eof_song->pro_guitar_track[tracknum]->numfrets)
+				{	//If the track being imported uses a fret value that is higher than what the active track's fret limit
+					eof_song->pro_guitar_track[tracknum]->numfrets = eof_get_highest_fret(eof_song, eof_selected_track, 0);	//Update the fret limit
+				}
+
+				if(eof_track_is_bass_arrangement(eof_song->pro_guitar_track[tracknum], eof_selected_track))
+				{	//If the track receiving the Guitar Pro import is configured as a bass guitar track
+					is_bass = 1;
+				}
+
+				if(is_bass && (eof_parsed_gp_file->instrument_types[selected] == 1))
+				{	//If the imported GP track is a guitar track and the user is importing it into an EOF track that's configured as a bass arrangement
+					if(alert("You are importing a guitar arrangement into a bass track.", NULL, "Update the recipient track's type to a non-bass arrangement type?", "&Yes", "&No", 'y', 'n') == 1)
+					{	//If the user opts to alter the arrangement type
+						eof_song->pro_guitar_track[tracknum]->arrangement = 0;	//Set it to undefined guitar arrangement
+					}
+				}
+				else if(!is_bass && (eof_parsed_gp_file->instrument_types[selected] == 2))
+				{	//If the imported GP track is a bass track and the user is importing it into an EOF track that's configured as a guitar arrangement
+					if(alert("You are importing a bass arrangement into a guitar track.", NULL, "Update the recipient track's type to a bass arrangement type?", "&Yes", "&No", 'y', 'n') == 1)
+					{	//If the user opts to alter the arrangement type
+						eof_song->pro_guitar_track[tracknum]->arrangement = 4;	//Set it to bass arrangement
+					}
+				}
+
+				for(ctr = 0; ctr < 6; ctr++)
+				{	//For each of the 6 supported strings
+					int new_tuning;
+					int default_tuning = eof_lookup_default_string_tuning_absolute(eof_song->pro_guitar_track[tracknum], eof_selected_track, ctr);	//Get the default absolute tuning for this string
+					if(default_tuning < 0)
+						continue;	//If the default tuning was not found, skip the string
+
+					new_tuning = eof_parsed_gp_file->track[selected]->tuning[ctr] - default_tuning;	//Convert the tuning to relative
+					new_tuning %= 12;	//Ensure the stored value is bounded to [-11,11]
+					if(!tuning_prompted && still_populated && (new_tuning != eof_song->pro_guitar_track[tracknum]->tuning[ctr]))
+					{	//If applying the imported track's tuning would alter the tuning for other notes that are already in the track, prompt the user
+						if(alert("Warning:  The imported track's tuning is different than the track's current tuning.", "Applying the tuning will affect the existing notes in the track.", "Apply the imported track's tuning?", "&Yes", "&No", 'y', 'n') == 1)
+						{	//If the user opts to set the imported track's tuning even though the active track still has notes in it
+							tuning_prompted = 1;	//Note that the user answered yes
+						}
+						else
+						{
+							tuning_prompted = 2;	//Note that the user answered no
+						}
+					}
+					if(tuning_prompted != 2)
+					{	//If the user didn't decline to apply the imported track's tuning
+						eof_song->pro_guitar_track[tracknum]->tuning[ctr] = new_tuning;	//Apply the tuning to this string
+					}
+				}
+				eof_song->pro_guitar_track[tracknum]->capo = eof_parsed_gp_file->track[selected]->capo;	//Apply the capo position
+				eof_song->pro_guitar_track[tracknum]->ignore_tuning = eof_parsed_gp_file->track[selected]->ignore_tuning;	//Apply the option whether or not to ignore the tuning for chord name lookups
+				eof_track_sort_notes(eof_song, eof_selected_track);	//Sort notes so tech notes display with the correct status
+			}
+		}
+	}//Only perform this action if a pro guitar/bass track is active
+
+	eof_log("\t\tImport complete", 1);
+	return D_CLOSE;
+}
+
+
 int eof_gp_import_guitar_track(int importvoice)
 {
 	unsigned long ctr, ctr2, selected;
@@ -5184,6 +5469,24 @@ int eof_gp_import_guitar_track(int importvoice)
 			{	//If this tremolo phrase doesn't overlap with any existing tremolo phrases in the active track
 				(void) eof_track_add_section(eof_song, eof_selected_track, EOF_TREMOLO_SECTION, eof_note_type, ptr->start_pos, ptr->end_pos, 0, NULL);	//Copy it to the active track difficulty
 			}
+		}
+
+		unsigned long defaulttone = 0;
+		unsigned long beat_position = 0;
+
+		// Copy tone changes
+		for(ctr = 0; ctr < eof_parsed_gp_file->track[selected]->tonechanges; ctr++) {
+			if((eof_parsed_gp_file->track[selected]->defaulttone[0] != '\0') &&
+				(!strcmp(eof_parsed_gp_file->track[selected]->defaulttone, eof_parsed_gp_file->track[selected]->tonechange[ctr].name)))
+			{	//If the tone being changed to is the currently defined default tone
+				defaulttone = 1;
+			}
+			else {
+				 defaulttone = 0;
+			}
+			(void) ustrcpy(eof_etext, eof_parsed_gp_file->track[selected]->tonechange[ctr].name);
+			beat_position = eof_song->beat[eof_parsed_gp_file->track[selected]->tonechange[ctr].start_pos]->pos;
+			(void) eof_track_add_section(eof_song, eof_selected_track, EOF_RS_TONE_CHANGE, 0, beat_position, defaulttone, 0, eof_etext);
 		}
 
 		//Copy the imported track's tuning, string count, fret count and capo position into the active track
@@ -5338,7 +5641,7 @@ int eof_gp_import_track(DIALOG * d)
 }
 
 char gp_import_undo_made;
-int eof_gp_import_common(const char *fn)
+int eof_gp_import_common(const char *fn, bool multi_track)
 {
 	unsigned long ctr, ctr2;
 
@@ -5359,18 +5662,27 @@ int eof_gp_import_common(const char *fn)
 		if(eof_parsed_gp_file->text_events)
 		{	//If there were text events imported
 			eof_clear_input();
-			if(alert(NULL, "Import Guitar Pro file's section markers/beat text as Rocksmith phrases/sections?", NULL, "&Yes", "&No", 'y', 'n') == 1)
-			{	//If the user opts to import RS phrases and sections from GP files
-				if(!gp_import_undo_made)
-				{	//If an undo state hasn't been made yet
-					eof_prepare_undo(EOF_UNDO_TYPE_NONE);
-					gp_import_undo_made = 1;
+			if (!multi_track) {
+				if(alert(NULL, "Import Guitar Pro file's section markers/beat text as Rocksmith phrases/sections?", NULL, "&Yes", "&No", 'y', 'n') == 1)
+				{	//If the user opts to import RS phrases and sections from GP files
+					if(!gp_import_undo_made)
+					{	//If an undo state hasn't been made yet
+						eof_prepare_undo(EOF_UNDO_TYPE_NONE);
+						gp_import_undo_made = 1;
+					}
 				}
 				for(ctr = 0; ctr < eof_parsed_gp_file->text_events; ctr++)
 				{	//For each of the text events
 					(void) eof_song_add_text_event(eof_song, eof_parsed_gp_file->text_event[ctr]->pos, eof_parsed_gp_file->text_event[ctr]->text, 0, eof_parsed_gp_file->text_event[ctr]->flags, 0);	//Add the event to the active project
 				}
 			}
+			else {
+				for(ctr = 0; ctr < eof_parsed_gp_file->text_events; ctr++)
+				{	//For each of the text events
+					(void) eof_song_add_text_event(eof_song, eof_parsed_gp_file->text_event[ctr]->pos, eof_parsed_gp_file->text_event[ctr]->text, 0, eof_parsed_gp_file->text_event[ctr]->flags, 0);	//Add the event to the active project
+				}
+			}
+
 			for(ctr = 0; ctr < eof_parsed_gp_file->text_events; ctr++)
 			{	//For each text event parsed from the Guitar Pro file
 				free(eof_parsed_gp_file->text_event[ctr]);	//Free the event
@@ -5379,9 +5691,14 @@ int eof_gp_import_common(const char *fn)
 			eof_sort_events(eof_song);
 		}
 
-		eof_color_dialog(eof_gp_import_dialog, gui_fg_color, gui_bg_color);
-		centre_dialog(eof_gp_import_dialog);
-		(void) eof_popup_dialog(eof_gp_import_dialog, 0);	//Launch the dialog to allow the user to import a track
+		if (!multi_track) {
+			eof_color_dialog(eof_gp_import_dialog, gui_fg_color, gui_bg_color);
+			centre_dialog(eof_gp_import_dialog);
+			(void) eof_popup_dialog(eof_gp_import_dialog, 0);	//Launch the dialog to allow the user to import a track
+		}
+		else {
+			eof_gp_import_gp_multi_track_for_rs(1);
+		}
 		eof_cursor_visible = 1;
 		eof_pen_visible = 1;
 		eof_show_mouse(NULL);
@@ -5430,6 +5747,7 @@ int eof_gp_import_common(const char *fn)
 		return 1;	//Return failure
 	}
 
+	eof_song->keep_chart_length_over_music_length = 1;
 	eof_log("Cleaning up beats", 1);
 	eof_truncate_chart(eof_song);	//Remove excess beat markers and update the eof_chart_length variable
 	eof_beat_stats_cached = 0;		//Mark the cached beat stats as not current
@@ -5482,7 +5800,7 @@ int eof_menu_file_gp_import(void)
 
 		if(newchart)
 		{	//If a project wasn't already opened when the import was started
-			if(!eof_command_line_gp_import(returnedfn))
+			if(!eof_command_line_gp_import(returnedfn, false))
 			{	//If the file was imported
 				eof_init_after_load(0);
 			}
@@ -5496,7 +5814,8 @@ int eof_menu_file_gp_import(void)
 		}
 		else
 		{	//A project was already open
-			(void) eof_gp_import_common(returnedfn);
+			(void) eof_gp_import_common(returnedfn, false);
+			eof_init_after_load(0);
 		}
 		(void) replace_filename(eof_last_gp_path, returnedfn_path, "", 1024);	//Set the last loaded GP file path
 	}
@@ -5505,7 +5824,7 @@ int eof_menu_file_gp_import(void)
 	return 1;
 }
 
-int eof_command_line_gp_import(char *fn)
+int eof_command_line_gp_import(char *fn, bool multi_track)
 {
 	char nfn[1024] = {0};
 
@@ -5516,10 +5835,10 @@ int eof_command_line_gp_import(char *fn)
 
 	//Create a new project and have user select a target pro guitar/bass track
 	(void) snprintf(eof_etext, sizeof(eof_etext) - 1, "Import Guitar Pro (guitar) arrangement to:");
-	if(!eof_create_new_project_select_pro_guitar())
+	if(!eof_create_new_project_select_pro_guitar(false))
 		return 2;	//New project couldn't be created
 
-	if(eof_gp_import_common(fn))
+	if(eof_gp_import_common(fn, multi_track))
 	{	//if there was an error importing the file
 		return 3;	//Return error
 	}
@@ -5542,6 +5861,75 @@ int eof_command_line_gp_import(char *fn)
 	}
 
 	return 0;	//Return success
+}
+
+int eof_menu_file_gp_multi_import(void)
+{
+	char returnedfn_path[1024] = {0}, *returnedfn = NULL;
+	char *initial;
+	char newchart = 0;	//Is set to nonzero if a new chart is created to store the imported RS file
+
+	if(!eof_song || !eof_song_loaded)
+	{	//If no project is loaded
+		newchart = 1;
+	}
+	else
+	{
+		if(eof_song->track[eof_selected_track]->track_format != EOF_PRO_GUITAR_TRACK_FORMAT)
+			return 1;	//Don't do anything unless the active track is a pro guitar/bass track
+	}
+
+	gp_import_undo_made = 0;	//Will ensure only one undo state is created during this import
+	eof_cursor_visible = 0;
+	eof_pen_visible = 0;
+	eof_render();
+	if((eof_last_gp_path[uoffset(eof_last_gp_path, ustrlen(eof_last_gp_path) - 1)] == '\\') || (eof_last_gp_path[uoffset(eof_last_gp_path, ustrlen(eof_last_gp_path) - 1)] == '/'))
+	{	//If the path ends in a separator
+		eof_last_gp_path[uoffset(eof_last_gp_path, ustrlen(eof_last_gp_path) - 1)] = '\0';	//Remove it
+	}
+	if(eof_imports_recall_last_path && eof_folder_exists(eof_last_gp_path))
+	{	//If the user chose for the GP import dialog to start at the path of the last imported GP file and that path is valid
+		initial = eof_last_gp_path;	//Use it
+	}
+	else
+	{	//Otherwise start at the project's path
+		initial = eof_last_eof_path;
+	}
+	returnedfn = ncd_file_select(0, initial, "Import Guitar Pro", eof_filter_gp_files);
+	eof_clear_input();
+	if(returnedfn)
+	{	//If a file was selected for import
+		strncpy(returnedfn_path, returnedfn, sizeof(returnedfn_path) - 1);	//Back up this path for later use
+
+		if(newchart)
+		{	//If a project wasn't already opened when the import was started
+			if(!eof_command_line_gp_import(returnedfn, true))
+			{	//If the file was imported
+				eof_selected_track = EOF_TRACK_PRO_GUITAR;
+				eof_init_after_load(0);
+			}
+			else
+			{	//Import failed
+				eof_destroy_song(eof_song);
+				eof_song = NULL;
+				eof_song_loaded = 0;
+				eof_changes = 0;
+			}
+		}
+		else
+		{	//A project was already open
+			(void) eof_gp_import_common(returnedfn, true);
+		}
+		(void) replace_filename(eof_last_gp_path, returnedfn_path, "", 1024);	//Set the last loaded GP file path
+	}
+	eof_menu_song_waveform();
+	eof_display_second_piano_roll = 1;
+	eof_selected_track2 = eof_selected_track;
+	eof_selected_track = EOF_TRACK_PRO_GUITAR_22; // Before swapping, set the one you want in the second screen
+	eof_menu_song_swap_piano_rolls();
+	eof_render();
+
+	return 1;
 }
 
 char * eof_gp_tracks_list(int index, int * size)
@@ -5894,7 +6282,7 @@ int eof_command_line_rs_import(char *fn)
 		eof_import_to_track_dialog[3].flags = 0;			//Deselect PART REAL_GUITAR as the default destination track for the import
 		eof_import_to_track_dialog[5].flags = D_SELECTED;	//Select PART REAL_GUITAR_22 instead
 	}
-	if(!eof_create_new_project_select_pro_guitar())
+	if(!eof_create_new_project_select_pro_guitar(true))
 		return 2;	//New project couldn't be created
 
 	if(eof_rs_import_common(fn))

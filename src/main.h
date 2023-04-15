@@ -834,7 +834,7 @@ void eof_use_key(void);
 
 void eof_hidden_mouse_callback(int flags);	//A mouse callback that uninstalls itself and restores the mouse position to (eof_mouse_x, eof_mouse_y) if it has moved
 
-EOF_SONG *eof_create_new_project_select_pro_guitar(void);
+EOF_SONG *eof_create_new_project_select_pro_guitar(bool select_track);
 	//Closes a project if one is open
 	//Prompts the user for a pro guitar/bass track to activate
 	//eof_etext[] is displayed to the user in the dialog

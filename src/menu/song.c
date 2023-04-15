@@ -2,6 +2,8 @@
 #include <ctype.h>	//For isdigit()
 #include <math.h>	//For sqrt()
 #include <string.h>	//For memcpy()
+#include <stdbool.h>
+
 #include "../agup/agup.h"
 #include "../main.h"
 #include "../config.h"
@@ -205,6 +207,7 @@ MENU eof_song_menu[] =
 	{"&INI Settings", eof_menu_song_ini_settings, NULL, 0, NULL},
 	{"Properties\tF9", eof_menu_song_properties, NULL, 0, NULL},
 	{"&Leading Silence", eof_menu_song_add_silence, NULL, 0, NULL},
+	{"Add count-in phrase", eof_menu_song_add_count_in, NULL, 0, NULL},
 	{"&Disable click and drag", eof_menu_song_disable_click_drag, NULL, 0, NULL},
 	{"Pro &Guitar", NULL, eof_song_proguitar_menu, 0, NULL},
 	{"&Rocksmith", NULL, eof_song_rocksmith_menu, 0, NULL},
@@ -2077,6 +2080,161 @@ static long get_ogg_length(const char * fn)
 	free(oggbuffer);
 
 	return length;
+}
+
+DIALOG eof_add_count_phrase_dialog[] =
+{
+	/* (proc)                 (x)  (y)  (w)  (h)  (fg) (bg) (key) (flags)    (d1)  (d2) (dp)                     (dp2) (dp3) */
+	{ d_agup_window_proc,  	  0,   48,  470, 128, 2,   23,  0,    0,          0,   0,   "Add count-in phrase",          NULL, NULL },
+	{ d_agup_text_proc,       16,  80,  110, 20,  2,   23,  0,    0,          0,   0,   "This will add around 3 seconds of silence, and create beats", NULL, NULL },
+	{ d_agup_text_proc,       16,  100, 110, 20,  2,   23,  0,    0,          0,   0,   "then place a COUNT phrase in first beat", NULL, NULL },
+	{ d_agup_button_proc,	  12,  140, 130, 28,  2,   23,  '\r', D_EXIT, 0,   0,   "OK",       NULL, NULL },
+	{ d_agup_button_proc,	  170, 140, 130, 28,  2,   23,  '\r', D_EXIT, 0,   0,   "Only add beats",       NULL, NULL },
+	{ d_agup_button_proc,	  328, 140, 130, 28,  2,   23,  '\r', D_EXIT, 0,   0,   "Cancel",       NULL, NULL },
+	{ NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, NULL, NULL, NULL }
+};
+
+int eof_menu_song_add_count_in(void)
+{
+	unsigned long silence_length = 0;
+	double beat_length = 0;
+	unsigned num = 4, den = 4;
+	long current_length = 0;
+	long after_silence_length = 0;
+	long adjust = 0;
+	unsigned long i;
+	char fn[1024] = {0};
+	char mp3fn[1024] = {0};
+	static int creationmethod = 9;	//Stores the user's last selected leading silence creation method (default to oggCat, which is menu item 9 in eof_leading_silence_dialog[])
+	int retval;
+	unsigned long old_eof_music_length = eof_music_length;	//Keep track of the current chart audio's length to compare with after silence was added
+	bool only_add_beats = false;
+
+	eof_log("eof_menu_song_add_count_in() entered", 1);
+
+	if(eof_silence_loaded)
+	{	//Do not allow this function to run when no audio is loaded
+		return 1;
+	}
+
+	eof_color_dialog(eof_add_count_phrase_dialog, gui_fg_color, gui_bg_color);
+	centre_dialog(eof_add_count_phrase_dialog);
+	int gui_retval = eof_popup_dialog(eof_add_count_phrase_dialog, 0);	//Launch the dialog to allow the user to import a track
+	if (gui_retval == 5) {
+		return 1;
+	}
+	else if (gui_retval == 4) {
+		only_add_beats = true;
+	}
+	// else: default behaviour, add silence to song
+
+	if(eof_supports_oggcat == 0)
+	{	//If EOF has not found oggCat to be available, disable it in the menu and select re-encode
+		creationmethod = 10;	//eof_leading_silence_dialog[10] is the re-encode option
+	}
+
+	ustrcpy(eof_etext,"3000");
+
+	eof_delete_rocksmith_wav();		//Delete the Rocksmith WAV file since changing silence will require a new WAV file to be written
+
+	(void) snprintf(fn, sizeof(fn) - 1, "%s.backup", eof_loaded_ogg_name);
+	current_length = get_ogg_length(eof_loaded_ogg_name);
+
+	//Add silence
+	eof_prepare_undo(EOF_UNDO_TYPE_SILENCE);
+
+	// Get at least 2 measures
+	beat_length = eof_calc_beat_length(eof_song, 0);
+	(void) eof_get_ts(eof_song, &num, &den, 0);	//Lookup any time signature defined at the beat
+
+	silence_length = 3000.0;
+	double silence_length_for_measure_sync = silence_length;
+	unsigned int n = 0;
+	for (n=0; n*num*beat_length < silence_length; n++) {
+		// Iterate until n measures is longer than minimum silence length
+		silence_length_for_measure_sync = (n+1)*num*beat_length;
+	}
+
+	silence_length = silence_length_for_measure_sync - beat_length;
+
+
+	(void) replace_filename(mp3fn, eof_song_path, "original.mp3", 1024);
+	if (!only_add_beats) {
+
+		if(exists(mp3fn))
+		{
+			creationmethod = 10;	//Remember this as the default next time
+			retval = eof_add_silence_recode_mp3(eof_loaded_ogg_name, silence_length);
+		}
+		else
+		{
+			creationmethod = 10;	//Remember this as the default next time
+			retval = eof_add_silence_recode(eof_loaded_ogg_name, silence_length);
+		}
+		// }
+		if(retval)
+		{	//If silence could not be inserted
+			(void) snprintf(eof_log_string, sizeof(eof_log_string) - 1, "\tError code %d when adding leading silence", retval);
+			eof_log(eof_log_string, 1);
+			allegro_message("Could not add leading silence (error %d)", retval);
+		}
+	}
+	after_silence_length = get_ogg_length(eof_loaded_ogg_name);
+	eof_song->tags->ogg[0].modified = 1;
+
+	if(eof_music_length < old_eof_music_length)
+	{	//If the operation malfunctioned (usually due to an incompatibility between OggCat and the chart audio)
+		char *stream_copy_message = "Try re-doing this with the re-encode option.";
+
+		(void) snprintf(eof_log_string, sizeof(eof_log_string) - 1, "\tLeading silence failure detected.  Chart audio went from %lums to %lums in length", old_eof_music_length, eof_music_length);
+		eof_log(eof_log_string, 1);
+		if(alert("Warning:  The leading silence operation seemed to have failed.", ((creationmethod == 9) ? stream_copy_message : ""), "Undo?", "&Yes", "&No", 'y', 'n') == 1)
+		{	//If the user opts to undo the operation
+			(void) eof_undo_apply();
+		}
+	}
+	else
+	{	//Operation succeeded, adjust notes/beats
+		if(after_silence_length != 0)
+		{
+			adjust = after_silence_length - current_length;
+		}
+		else
+		{
+			adjust = get_ogg_length(fn) - current_length;
+		}
+		if(eof_song->tags->ogg[0].midi_offset + adjust < 0)
+		{
+			adjust = 0;
+		}
+		eof_song->tags->ogg[0].midi_offset += adjust;
+		if(eof_song->beat[0]->pos != eof_song->tags->ogg[0].midi_offset)
+		{
+			for(i = 0; i < eof_song->beats; i++)
+			{
+				eof_song->beat[i]->fpos += (double)adjust;
+				eof_song->beat[i]->pos = eof_song->beat[i]->fpos + 0.5;	//Round up
+			}
+		}
+		(void) eof_adjust_notes(ULONG_MAX, adjust);
+
+		eof_fixup_notes(eof_song);
+		eof_calculate_beats(eof_song);
+		eof_fix_window_title();
+		eof_truncate_chart(eof_song);	//Update number of beats and the chart length as appropriate
+	}
+
+	eof_menu_beat_reset_offset();
+	(void) eof_song_add_text_event(eof_song, 0, "COUNT", 0, EOF_EVENT_FLAG_RS_PHRASE, 0);	//Add it as a temporary event at the first beat
+	// Place intro section if there wasn't a section otherwise you can't practice the first section
+	if (eof_song->beat[n*num]->contained_rs_section_event < 0) {
+		(void) eof_song_add_text_event(eof_song, n*num, "intro", 0, (EOF_EVENT_FLAG_RS_SECTION | EOF_EVENT_FLAG_RS_PHRASE), 0);	//Add it as a temporary event at the first beat
+	}
+	
+	eof_show_mouse(NULL);
+	eof_cursor_visible = 1;
+	eof_pen_visible = 1;
+	return 1;
 }
 
 int eof_menu_song_add_silence(void)
