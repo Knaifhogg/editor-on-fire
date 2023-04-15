@@ -279,7 +279,6 @@ EOF_SONG * eof_create_song(void)
 	sp->midi_data_head = sp->midi_data_tail = NULL;
 	sp->fpbeattimes = 0;
 	return sp;
-	sp->keep_chart_length_over_music_length = 0;
 }
 
 void eof_destroy_song(EOF_SONG * sp)
@@ -8635,7 +8634,7 @@ void eof_truncate_chart(EOF_SONG *sp)
 	targetpos = eof_determine_chart_length(sp);	//Find the chart native length
 
 	//Determine the larger of the last item position and the end of the loaded audio
-	if(sp->keep_chart_length_over_music_length == 0 && eof_music_length > targetpos)
+	if(eof_music_length > targetpos)
 	{
 		targetpos = eof_music_length;
 	}

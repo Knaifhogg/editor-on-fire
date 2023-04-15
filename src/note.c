@@ -155,9 +155,6 @@ int eof_adjust_notes(unsigned long track, int offset)
 			}
 
 			eof_set_note_pos(eof_song, i, j, eof_get_note_pos(eof_song, i, j) + offset);	//Add the offset to the note's position
-			if (eof_get_note_endpos(eof_song,i,j) > eof_chart_length) {
-				eof_chart_length += offset;
-			}
 		}
 		//Offset the tech notes
 		if(eof_song->track[i]->track_format == EOF_PRO_GUITAR_TRACK_FORMAT)

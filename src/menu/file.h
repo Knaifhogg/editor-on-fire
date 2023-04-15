@@ -2,7 +2,6 @@
 #define EOF_MENU_FILE_H
 
 #include <stdio.h>
-#include <stdbool.h>
 #include "../song.h"
 #include "../control.h"
 #include "../chart_import.h"
@@ -156,16 +155,14 @@ int eof_menu_prompt_save_changes(void);
 
 char * eof_gp_tracks_list(int index, int * size);
 	//Dialog logic to display the imported pro guitar tracks present in the eof_parsed_gp_file global pointer
-int eof_gp_import_common(const char *fn, bool multi_track);
+int eof_gp_import_common(const char *fn);
 	//Imports the specified Guitar Pro file to the active track if the active track is a pro guitar/bass track
 	//Returns nonzero on error
 int eof_menu_file_gp_import(void);
 	//Loads each track from a Guitar Pro file and prompts user which to import into the active project
-int eof_command_line_gp_import(char *fn, bool multi_track);
+int eof_command_line_gp_import(char *fn);
 	//Creates a new project and imports the specified Guitar Pro track into the user-specified pro guitar/bass track
 	//Returns zero on success
-int eof_menu_file_gp_multi_import(void);
-	//Loads all tracks from a Guitar Pro file and places them in pre-determined tracks
 
 int eof_rs_import_common(char *fn);
 	//Imports the specified Rocksmith XML file to the active track if the active track is a pro guitar/bass track
