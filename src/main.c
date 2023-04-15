@@ -4858,7 +4858,7 @@ int eof_initialize(int argc, char * argv[])
 				}
 				else if(retval == 2)
 				{	//Go PlayAlong file
-					if(!eof_command_line_gp_import(argv[i], FALSE))
+					if(!eof_command_line_gp_import(argv[i]))
 					{	//If a new project was created and the Guitar Pro file was imported successfully
 						eof_log("\tImport complete", 1);
 					}
@@ -4871,7 +4871,7 @@ int eof_initialize(int argc, char * argv[])
 			}
 			else if(!ustricmp(get_extension(argv[i]), "gp3") || !ustricmp(get_extension(argv[i]), "gp4") || !ustricmp(get_extension(argv[i]), "gp5"))
 			{	//Import a Guitar Pro file via command line
-				if(!eof_command_line_gp_import(argv[i], FALSE))
+				if(!eof_command_line_gp_import(argv[i]))
 				{	//If a new project was created and the Guitar Pro file was imported successfully
 					eof_log("\tImport complete", 1);
 				}
@@ -6196,43 +6196,40 @@ DIALOG eof_import_to_track_dialog[] =
 	{ d_agup_radio_proc,  16, 135, 156,  15,   2,   23,  0,    0,        1,   0,  "PART REAL_BASS_22",      NULL, NULL },
 	{ d_agup_radio_proc,  16, 150, 172 , 15,   2,   23,  0,    0,        1,   0,  "PART REAL_GUITAR_22",    NULL, NULL },
 	{ d_agup_radio_proc,  16, 165, 202 , 15,   2,   23,  0,    0,        1,   0,  "PART REAL_GUITAR_BONUS", NULL, NULL },
-	{ d_agup_radio_proc,  16, 165, 202 , 15,   2,   23,  0,    0,        1,   0,  "All available for Rocksmith", NULL, NULL },
 	{ d_agup_button_proc, 100,195,  68,  28,   2,   23, '\r', D_EXIT,    0,   0,  "OK",                     NULL, NULL },
 	{ NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, NULL, NULL, NULL }
 };
 
-EOF_SONG *eof_create_new_project_select_pro_guitar(bool select_track)
+EOF_SONG *eof_create_new_project_select_pro_guitar(void)
 {
 	unsigned long user_selection = EOF_TRACK_PRO_GUITAR;	//By default, a track imports to the 17 fret pro guitar track
 
 	eof_log("eof_create_new_project_select_pro_guitar() entered", 1);
 
-	if (select_track) {
-		if(eof_menu_prompt_save_changes() == 3)
-		{	//If user canceled closing the current, modified chart
-			return NULL;
-		}
+	if(eof_menu_prompt_save_changes() == 3)
+	{	//If user canceled closing the current, modified chart
+		return NULL;
+	}
 
-		eof_color_dialog(eof_import_to_track_dialog, gui_fg_color, gui_bg_color);
-		centre_dialog(eof_import_to_track_dialog);
-		(void) eof_popup_dialog(eof_import_to_track_dialog, 0);
+	eof_color_dialog(eof_import_to_track_dialog, gui_fg_color, gui_bg_color);
+	centre_dialog(eof_import_to_track_dialog);
+	(void) eof_popup_dialog(eof_import_to_track_dialog, 0);
 
-		if(eof_import_to_track_dialog[2].flags == D_SELECTED)
-		{
-			user_selection = EOF_TRACK_PRO_BASS;
-		}
-		else if(eof_import_to_track_dialog[4].flags == D_SELECTED)
-		{
-			user_selection = EOF_TRACK_PRO_BASS_22;
-		}
-		else if(eof_import_to_track_dialog[5].flags == D_SELECTED)
-		{
-			user_selection = EOF_TRACK_PRO_GUITAR_22;
-		}
-		else if(eof_import_to_track_dialog[6].flags == D_SELECTED)
-		{
-			user_selection = EOF_TRACK_PRO_GUITAR_B;
-		}
+	if(eof_import_to_track_dialog[2].flags == D_SELECTED)
+	{
+		user_selection = EOF_TRACK_PRO_BASS;
+	}
+	else if(eof_import_to_track_dialog[4].flags == D_SELECTED)
+	{
+		user_selection = EOF_TRACK_PRO_BASS_22;
+	}
+	else if(eof_import_to_track_dialog[5].flags == D_SELECTED)
+	{
+		user_selection = EOF_TRACK_PRO_GUITAR_22;
+	}
+	else if(eof_import_to_track_dialog[6].flags == D_SELECTED)
+	{
+		user_selection = EOF_TRACK_PRO_GUITAR_B;
 	}
 
 	if(eof_song)
@@ -6252,7 +6249,7 @@ EOF_SONG *eof_create_new_project_select_pro_guitar(bool select_track)
 		eof_song_loaded = 1;
 		(void) eof_menu_track_selected_track_number(user_selection, 1);	//Change to the user selected track
 	}
- // comment?
+
 	if(!eof_song_append_beats(eof_song, 1))
 	{	//If there was an error adding a beat
 		eof_destroy_song(eof_song);
