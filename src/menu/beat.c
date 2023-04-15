@@ -1,4 +1,5 @@
 #include <allegro.h>
+#include <stdbool.h>
 #include "../agup/agup.h"
 #include "../main.h"
 #include "../dialog.h"
@@ -1003,7 +1004,8 @@ int eof_menu_beat_reset_offset(void)
 	double newbpm;
 	char undo_made = 0;
 	unsigned long last_pos;
-
+	unsigned long measure_length = 0;
+	unsigned int count = 0;
 	if(!eof_song)
 		return 1;
 	if(eof_song->beat[0]->pos == 0)
@@ -1025,8 +1027,19 @@ int eof_menu_beat_reset_offset(void)
 	if(eof_song->beat[0]->pos >= eof_song->beat[1]->pos - eof_song->beat[0]->pos)
 	{	//If the MIDI delay is at least one beat length long, offer to insert as many evenly spaced beats as possible
 		eof_clear_input();
-		if(alert(NULL, "Insert evenly spaced beats at the beginning of the chart?", NULL, "&Yes", "&No", 'y', 'n') == 1)
+		if(eof_song->auto_accept_add_new_beats == 1 || alert(NULL, "Insert evenly spaced beats at the beginning of the chart?", NULL, "&Yes", "&No", 'y', 'n') == 1)
 		{	//If user opts to insert evenly spaced beats
+			unsigned int beats_to_add = 0;
+			if (eof_song->n_beats_in_measure >= 1) {
+				unsigned long available_space = eof_song->beat[0]->pos;
+				measure_length = (unsigned long)eof_song->n_beats_in_measure * eof_get_beat_length(eof_song, 0);
+				if (measure_length == 0) {
+					return 0;	//Return failure
+				}
+				unsigned int available_measure_space = available_space / measure_length;
+				beats_to_add = available_measure_space * eof_song->n_beats_in_measure;
+			}
+
 			while(eof_song->beat[0]->pos >= eof_song->beat[1]->pos - eof_song->beat[0]->pos)
 			{	//While the MIDI delay is still large enough to be moved back one beat
 				last_pos = eof_song->beat[0]->pos;	//Track this in case floating point beat positional rounding up would cause this loop to get stuck indefinitely
@@ -1038,11 +1051,17 @@ int eof_menu_beat_reset_offset(void)
 				{	//If the first beat's position did not move from the last call to eof_menu_beat_push_offset_back()
 					break;
 				}
+				count++;
+				if (count == beats_to_add) {
+					break;
+				}
 			}
 		}
 	}
+	(void) snprintf(eof_log_string, sizeof(eof_log_string) - 1, "\t Reset offset added %u beats.", count);
+	eof_log(eof_log_string, 1);
 
-	if(eof_song->beat[0]->pos == 0)
+	if(eof_song->beat[0]->pos == 0 || eof_song->n_beats_in_measure >= 1)
 	{	//If the beat push back completely filled the offset and the first beat marker is now at 0ms
 		return 1;	//No more changes are needed
 	}

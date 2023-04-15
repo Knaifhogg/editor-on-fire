@@ -117,7 +117,7 @@
 #define EOF_NOTE_TFLAG_GENERIC2    524288	//This flag is reserved for generic purposes
 #define EOF_NOTE_TFLAG_SP_END      524288	//	Such as marking which notes are the last in a star power phrase during star power pathing
 #define EOF_NOTE_TFLAG_GRACE      1048576	//This flag will indicate that the note was defined in an imported guitar pro file as a before the beat grace note, which can be converted to flam notes in the case of a percussion track
-
+#define EOF_NOTE_TFLAG_GRACE_BEFORE_FIRST_NOTE 2097152 // This flag will be set if the note is a grace note into a first note in a measure
 
 ///Extended note flags
 //Extended flags are track specific and should not be retained when copied to a track of a different format
@@ -607,7 +607,7 @@ typedef struct
 	 * when importing we should store the value from the source file here to
 	 * simplify import and to minimize changes made to the file upon export */
 	int resolution;
-
+	unsigned int bpm;
 	/* track data */
 	EOF_TRACK_ENTRY * track[EOF_TRACKS_MAX];	//track[] is a list of all existing tracks among all track types
 	unsigned long tracks;						//track[0] is a dummy track and does not store actual track data
@@ -634,7 +634,9 @@ typedef struct
 	unsigned long bookmark_pos[EOF_MAX_BOOKMARK_ENTRIES];	//A bookmark is set if its position is set to nonzero
 	EOF_CATALOG * catalog;
 	char fpbeattimes;	//Is set to nonzero if floating point beat timings were read from the project file during load, allowing a precision lossy call to eof_calculate_beats() to be avoided in eof_init_after_load()
-
+	char keep_chart_length_over_music_length;
+	char n_beats_in_measure;
+	char auto_accept_add_new_beats;
 } EOF_SONG;
 
 EOF_SONG * eof_create_song(void);	//Allocates, initializes and returns an EOF_SONG structure

@@ -26,6 +26,8 @@ unsigned long eof_calculate_beats_logic(EOF_SONG * sp, int addbeats);
 	//Returns nonzero to indicate the number of beats added to the project
 unsigned long eof_calculate_beats(EOF_SONG * sp);
 	//Calls eof_calculate_beats_logic with the option to add beats as deemed necessary
+unsigned long eof_calculate_range_of_beats_logic(EOF_SONG * sp, const unsigned long start_beat, unsigned long end_beat);
+	//Does a calculation of beats defined by range parameters, to save time so it can each measure
 void eof_calculate_tempo_map(EOF_SONG * sp);
 	//Sets the tempo and anchor status of each beat in the EOF_SONG structure by using the configured FLOATING POINT time stamp of each beat
 double eof_calculate_beat_pos_by_prev_beat_tempo(EOF_SONG *sp, unsigned long beat);

@@ -279,6 +279,7 @@ EOF_SONG * eof_create_song(void)
 	sp->midi_data_head = sp->midi_data_tail = NULL;
 	sp->fpbeattimes = 0;
 	return sp;
+	sp->keep_chart_length_over_music_length = 0;
 }
 
 void eof_destroy_song(EOF_SONG * sp)
@@ -8634,7 +8635,7 @@ void eof_truncate_chart(EOF_SONG *sp)
 	targetpos = eof_determine_chart_length(sp);	//Find the chart native length
 
 	//Determine the larger of the last item position and the end of the loaded audio
-	if(eof_music_length > targetpos)
+	if(sp->keep_chart_length_over_music_length == 0 && eof_music_length > targetpos)
 	{
 		targetpos = eof_music_length;
 	}
@@ -8645,14 +8646,17 @@ void eof_truncate_chart(EOF_SONG *sp)
 	}
 	if(sp->beat[sp->beats - 1]->pos <= targetpos)
 	{	//If there aren't enough beats so that at least one starts after the target position
-		eof_log("\tAdding beats", 1);
+		(void) snprintf(eof_log_string, sizeof(eof_log_string) - 1,"\tAdding beats to go from %lu to %lu", sp->beat[sp->beats - 1]->pos, targetpos);
+		eof_log(eof_log_string, 1);
+
 		count = 0;
 		while(sp->beat[sp->beats - 1]->pos <= targetpos)
 		{	//While there aren't enough beats so that at least one starts after the target position
 			if(!eof_song_append_beats(sp, 1))
 			{	//If there was an error adding a beat
-				eof_log("\tError adding beat.  Aborting", 1);
-				return;
+				(void) snprintf(eof_log_string, sizeof(eof_log_string) - 1,"\tError adding beat at %lu. Aborting", sp->beats);
+				eof_log(eof_log_string, 1);
+				break;
 			}
 			count++;
 		}
